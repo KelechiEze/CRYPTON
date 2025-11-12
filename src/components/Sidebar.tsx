@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, handleLogout }) =>
 
       <aside className={`fixed lg:relative top-0 left-0 h-full w-64 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col z-40 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-300 tracking-wider">CRYPTON</h1>
+          <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-300 tracking-wider">KRYPTORN</h1>
           <button className="lg:hidden" onClick={() => setIsOpen(false)}>
               <X size={24} />
           </button>
