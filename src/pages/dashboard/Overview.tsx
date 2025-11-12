@@ -1,11 +1,12 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X } from 'lucide-react';
 import gsap from 'gsap';
 
 const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
 
     useEffect(() => {
         gsap.fromTo(overviewRef.current?.children, 
@@ -73,13 +74,17 @@ const Overview: React.FC = () => {
             {/* New Referral Banner */}
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-green-500/20">
                 <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3"><Gift size={28} /> Invite Friends, Earn Crypto</h2>
-                    <p className="text-green-100 mt-1">Get $10 in BTC for every friend who signs up and trades $100.</p>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-3"><Gift size={28} /> Click the button to claim your $50</h2>
+                    <p className="text-green-100 mt-1">Get $50 in BTC by Clicking on the Button NOW!</p>
                 </div>
-                <button className="bg-white text-green-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105">
-                    Get Invite Link
+                <button 
+                    onClick={() => setIsClaimModalOpen(true)}
+                    className="bg-white text-green-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105"
+                >
+                    Claim $50 worth of Bitcoin
                 </button>
             </div>
+            {isClaimModalOpen && <ClaimSuccessModal onClose={() => setIsClaimModalOpen(false)} />}
         </div>
     );
 };
@@ -155,5 +160,76 @@ const SmallAdCard: React.FC<SmallAdCardProps> = ({ icon: Icon, title, descriptio
         </button>
     </div>
 );
+
+const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const modalElement = modalRef.current;
+        const backdropElement = backdropRef.current;
+
+        gsap.set([backdropElement, modalElement], { autoAlpha: 1 });
+
+        const tl = gsap.timeline();
+        tl.to(backdropElement, { backgroundColor: 'rgba(0, 0, 0, 0.7)', duration: 0.3 })
+          .fromTo(modalElement, 
+              { scale: 0.8, y: 20 },
+              { scale: 1, y: 0, duration: 0.4, ease: 'back.out(1.7)' }, 
+              "-=0.2"
+          );
+        
+        // Decorative icons animation
+        gsap.fromTo(".deco-coin", 
+            { y: 10, opacity: 0 },
+            { 
+                y: -10, 
+                opacity: 1, 
+                duration: 1, 
+                stagger: 0.2, 
+                repeat: -1, 
+                yoyo: true, 
+                ease: 'sine.inOut' 
+            }
+        );
+    }, []);
+
+    const handleClose = () => {
+        const tl = gsap.timeline({ onComplete: onClose });
+        tl.to(modalRef.current, { scale: 0.8, autoAlpha: 0, duration: 0.3, ease: 'power2.in' })
+          .to(backdropRef.current, { autoAlpha: 0, duration: 0.3 }, "-=0.2");
+    };
+
+    return (
+        <div ref={backdropRef} onClick={handleClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}>
+            <div
+                ref={modalRef}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-sm border border-gray-200 dark:border-gray-700 shadow-2xl relative text-center overflow-hidden"
+            >
+                {/* Decorative Elements */}
+                <Bitcoin className="deco-coin absolute top-4 left-4 text-yellow-400/20 dark:text-yellow-300/10" size={32} />
+                <Bitcoin className="deco-coin absolute bottom-12 right-8 text-yellow-400/20 dark:text-yellow-300/10" size={24} style={{ animationDelay: '0.5s' }} />
+                <Bitcoin className="deco-coin absolute top-16 right-4 text-yellow-400/20 dark:text-yellow-300/10" size={20} style={{ animationDelay: '1s' }} />
+
+                <div className="relative z-10">
+                    <div className="w-20 h-20 bg-green-500/20 dark:bg-green-400/20 rounded-full mx-auto flex items-center justify-center mb-4">
+                        <CheckCircle className="text-green-500 dark:text-green-400" size={48} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Success!</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mt-2">You have successfully claimed your $50!</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">The Bitcoin will be added to your wallet balance shortly.</p>
+                    <button
+                        onClick={handleClose}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-6 transition-transform transform hover:scale-105"
+                    >
+                        Great!
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 export default Overview;
