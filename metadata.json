@@ -1,0 +1,4 @@
+{
+  "name": "Crypto Currency Dashboard",
+  "description": "A sleek and futuristic cryptocurrency dashboard with a 3D preloader, user authentication pages, and a functional dashboard to view wallets, transactions, and settings. It uses real-time data from the CoinGecko API."
+}
