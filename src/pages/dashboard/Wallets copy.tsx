@@ -47,9 +47,9 @@ const Wallets: React.FC = () => {
         setModalType(null);
     };
 
-    const handleConfirmSend = async (coinId: string, amount: number, price: number, recipientAddress: string) => {
+    const handleConfirmSend = (coinId: string, amount: number, price: number) => {
         const amountUsd = amount * price;
-        await deductSentValue(coinId, amountUsd, recipientAddress);
+        deductSentValue(coinId, amountUsd);
         closeModal();
         showTempNotification('Sent Successfully!', 'send');
     };
@@ -104,20 +104,12 @@ const Wallets: React.FC = () => {
                                         <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Balance</span>
                                         <div className="text-right">
                                             <p>{balances[coin.id] ? (balances[coin.id] / coin.current_price).toFixed(6) : '0.00'} {coin.symbol.toUpperCase()}</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">${balances[coin.id]?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">${balances[coin.id]?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                         </div>
                                     </td>
                                     <td className="pt-4 md:p-4 md:table-cell">
                                         <div className="flex justify-end md:justify-center items-center gap-2">
-                                            <button 
-                                                onClick={() => handleSend(coin)} 
-                                                disabled={!balances[coin.id] || balances[coin.id] <= 0}
-                                                className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
-                                                    !balances[coin.id] || balances[coin.id] <= 0
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-600/50 hover:bg-blue-600 text-white'
-                                                }`}
-                                            >
+                                            <button onClick={() => handleSend(coin)} className="flex items-center gap-2 bg-blue-600/50 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm">
                                                 <Send size={14}/> Send
                                             </button>
                                             <button onClick={() => handleReceive(coin)} className="flex items-center gap-2 bg-green-600/50 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm">
@@ -162,7 +154,7 @@ interface TransactionModalProps {
     coin: Coin;
     balance: number;
     onClose: () => void;
-    onConfirmSend: (coinId: string, amount: number, price: number, recipientAddress: string) => void;
+    onConfirmSend: (coinId: string, amount: number, price: number) => void;
     onCopy: () => void;
 }
 
@@ -179,7 +171,6 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
     const handleSubmit = () => {
         if (type === 'Receive') {
             onCopy();
-            onClose();
             return;
         }
 
@@ -201,7 +192,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
             
             setError('');
             const cryptoAmount = numericAmountUsd / coin.current_price;
-            onConfirmSend(coin.id, cryptoAmount, coin.current_price, address);
+            onConfirmSend(coin.id, cryptoAmount, coin.current_price);
         }
     }
 
@@ -220,13 +211,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
                     <div className="space-y-4">
                         <div>
                             <label className="text-sm text-gray-500 dark:text-gray-400">Recipient Address</label>
-                            <input 
-                                type="text" 
-                                value={address} 
-                                onChange={(e) => setAddress(e.target.value)} 
-                                placeholder={`Enter ${coin.symbol.toUpperCase()} address`} 
-                                className="w-full mt-1 bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 px-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
+                            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={`Enter ${coin.symbol.toUpperCase()} address`} className="w-full mt-1 bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 px-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                         </div>
                         <div>
                             <div className="flex justify-between items-baseline">
@@ -235,14 +220,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
                             </div>
                             <div className="relative mt-1">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">$</span>
-                                <input 
-                                    id="amount-usd" 
-                                    type="number" 
-                                    value={amountUsd} 
-                                    onChange={(e) => setAmountUsd(e.target.value)} 
-                                    placeholder="0.00" 
-                                    className="w-full bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-7 pr-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+                                <input id="amount-usd" type="number" value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} placeholder="0.00" className="w-full bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-7 pr-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"/>
                             </div>
                             {parseFloat(amountUsd) > 0 && coin.current_price > 0 && (
                                 <p className="text-right text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -272,6 +250,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
         </div>
     )
 }
+
 
 interface NotificationProps {
     message: string;

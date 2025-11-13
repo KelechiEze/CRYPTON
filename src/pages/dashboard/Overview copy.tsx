@@ -2,53 +2,11 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X } from 'lucide-react';
 import gsap from 'gsap';
-import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
-import { auth } from '../../firebase';
 
 const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
-    const [userData, setUserData] = useState({
-        balance: 0,
-        bitcoinBalance: 0,
-        portfolioChange: 0,
-        topGainer: 'Bitcoin',
-        mostTraded: 'Ethereum'
-    });
-    const [user, setUser] = useState<any>(null);
-    const [hasClaimed, setHasClaimed] = useState(false);
-    const [isClaiming, setIsClaiming] = useState(false);
-
-    useEffect(() => {
-        // Get current user
-        const currentUser = auth.currentUser;
-        setUser(currentUser);
-
-        if (currentUser) {
-            // Check if user has already claimed bonus
-            const checkBonusClaim = async () => {
-                const claimed = await hasClaimedBonus(currentUser.uid);
-                setHasClaimed(claimed);
-            };
-            checkBonusClaim();
-
-            // Subscribe to real-time user data
-            const unsubscribe = subscribeToUserData(currentUser.uid, (data) => {
-                if (data) {
-                    setUserData({
-                        balance: data.balance || 0,
-                        bitcoinBalance: data.wallets?.bitcoin?.balance || 0,
-                        portfolioChange: data.portfolioChange || 0,
-                        topGainer: data.topGainer || 'Bitcoin',
-                        mostTraded: data.mostTraded || 'Ethereum'
-                    });
-                }
-            });
-
-            return () => unsubscribe();
-        }
-    }, []);
 
     useEffect(() => {
         gsap.fromTo(overviewRef.current?.children, 
@@ -57,71 +15,16 @@ const Overview: React.FC = () => {
         );
     }, []);
 
-    const handleClaimBonus = async () => {
-        if (!user) return;
-        
-        // Prevent multiple clicks
-        if (isClaiming) return;
-        
-        // Check if already claimed
-        if (hasClaimed) {
-            alert('Bonus already claimed! You can only claim the welcome bonus once.');
-            return;
-        }
-
-        setIsClaiming(true);
-        
-        try {
-            const result = await claimBonus(user.uid);
-            
-            if (result.success) {
-                setHasClaimed(true);
-                setIsClaimModalOpen(true);
-            } else {
-                alert('Failed to claim bonus. Please try again.');
-            }
-        } catch (error) {
-            console.error('Error claiming bonus:', error);
-            alert('Failed to claim bonus. Please try again.');
-        } finally {
-            setIsClaiming(false);
-        }
-    };
-
     return (
         <div ref={overviewRef} className="space-y-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
 
             {/* Main Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                    icon={DollarSign} 
-                    title="Total Balance" 
-                    value={`$${userData.balance.toFixed(2)}`} 
-                    change="+0%" 
-                    isPositive={true} 
-                />
-                <StatCard 
-                    icon={TrendingUp} 
-                    title="24h Portfolio Change" 
-                    value={`$${userData.portfolioChange.toFixed(2)}`} 
-                    change="+0%" 
-                    isPositive={true} 
-                />
-                <StatCard 
-                    icon={Bitcoin} 
-                    title="Top Gainer" 
-                    value={userData.topGainer} 
-                    change="+0%" 
-                    isPositive={true} 
-                />
-                <StatCard 
-                    icon={Zap} 
-                    title="Most Traded" 
-                    value={userData.mostTraded} 
-                    change="0%" 
-                    isPositive={true} 
-                />
+                <StatCard icon={DollarSign} title="Total Balance" value="$12,842.55" change="+2.5%" isPositive={true} />
+                <StatCard icon={TrendingUp} title="24h Portfolio Change" value="$312.10" change="+2.5%" isPositive={true} />
+                <StatCard icon={Bitcoin} title="Top Gainer" value="Solana" change="+12.8%" isPositive={true} />
+                <StatCard icon={Zap} title="Most Traded" value="Ethereum" change="-3.1%" isPositive={false} />
             </div>
 
             {/* Enhanced Ad Banner */}
@@ -137,14 +40,13 @@ const Overview: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Recent Activity - Empty for new users */}
+                {/* Recent Activity */}
                 <div className="lg:col-span-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6">
                     <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recent Activity</h2>
                     <div className="space-y-4">
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                            <p>No recent activity</p>
-                            <p className="text-sm mt-2">Your transactions will appear here</p>
-                        </div>
+                        <ActivityItem type="Sent" crypto="Bitcoin" amount="0.005 BTC" value="$340.12" time="2 hours ago" />
+                        <ActivityItem type="Received" crypto="Ethereum" amount="0.1 ETH" value="$350.80" time="5 hours ago" />
+                        <ActivityItem type="Swapped" crypto="SOL for USDC" amount="10 SOL" value="$1500.00" time="1 day ago" />
                     </div>
                 </div>
 
@@ -170,40 +72,16 @@ const Overview: React.FC = () => {
             </div>
 
             {/* New Referral Banner */}
-            <div className={`p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg ${
-                hasClaimed 
-                    ? 'bg-gradient-to-r from-gray-500 to-gray-600 shadow-gray-500/20' 
-                    : 'bg-gradient-to-r from-green-500 to-emerald-600 shadow-green-500/20'
-            }`}>
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-green-500/20">
                 <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <Gift size={28} /> 
-                        {hasClaimed ? 'Bonus Already Claimed!' : 'Click the button to claim your $50'}
-                    </h2>
-                    <p className={`mt-1 ${hasClaimed ? 'text-gray-200' : 'text-green-100'}`}>
-                        {hasClaimed 
-                            ? 'You have already received your welcome bonus. Check your wallet balance!' 
-                            : 'Get $50 in BTC by Clicking on the Button NOW!'
-                        }
-                    </p>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-3"><Gift size={28} /> Click the button to claim your $50</h2>
+                    <p className="text-green-100 mt-1">Get $50 in BTC by Clicking on the Button NOW!</p>
                 </div>
                 <button 
-                    onClick={handleClaimBonus}
-                    disabled={hasClaimed || isClaiming}
-                    className={`font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 ${
-                        hasClaimed
-                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                            : isClaiming
-                            ? 'bg-green-400 text-white cursor-wait'
-                            : 'bg-white text-green-600 hover:bg-gray-100'
-                    }`}
+                    onClick={() => setIsClaimModalOpen(true)}
+                    className="bg-white text-green-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105"
                 >
-                    {isClaiming 
-                        ? 'Claiming...' 
-                        : hasClaimed 
-                        ? 'Bonus Claimed ✓' 
-                        : 'Claim $50 worth of Bitcoin'
-                    }
+                    Claim $50 worth of Bitcoin
                 </button>
             </div>
             {isClaimModalOpen && <ClaimSuccessModal onClose={() => setIsClaimModalOpen(false)} />}
@@ -231,6 +109,34 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, title, value, change, i
         </div>
     </div>
 );
+
+interface ActivityItemProps {
+    type: string;
+    crypto: string;
+    amount: string;
+    value: string;
+    time: string;
+}
+const ActivityItem: React.FC<ActivityItemProps> = ({ type, crypto, amount, value, time }) => {
+    const isPositive = type === 'Received';
+    return (
+        <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-200/50 dark:hover:bg-gray-700/50">
+            <div className="flex items-center">
+                <div className={`p-2 rounded-full mr-4 ${isPositive ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                    {isPositive ? <ArrowDownRight className="text-green-400" size={20}/> : <ArrowUpRight className="text-red-400" size={20}/>}
+                </div>
+                <div>
+                    <p className="font-semibold text-gray-900 dark:text-white">{type} {crypto}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{time}</p>
+                </div>
+            </div>
+            <div className="text-right">
+                <p className="font-semibold text-gray-900 dark:text-white">{amount}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{value}</p>
+            </div>
+        </div>
+    );
+};
 
 interface SmallAdCardProps {
     icon: React.ElementType;
@@ -312,7 +218,7 @@ const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Success!</h2>
                     <p className="text-gray-600 dark:text-gray-300 mt-2">You have successfully claimed your $50!</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">$50 has been added to your balance and equivalent BTC to your Bitcoin wallet.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">The Bitcoin will be added to your wallet balance shortly.</p>
                     <button
                         onClick={handleClose}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-6 transition-transform transform hover:scale-105"
@@ -324,5 +230,6 @@ const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
     );
 };
+
 
 export default Overview;
