@@ -90,7 +90,7 @@ const Overview: React.FC = () => {
 
     return (
         <div ref={overviewRef} className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome To paycoin</h1>
 
             {/* Main Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
