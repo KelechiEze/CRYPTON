@@ -174,6 +174,7 @@ const Mine: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Crypto Mining</h1>
             <p className="text-gray-500 dark:text-gray-400">
                 Start mining assets to increase your wallet balance. Mining is simulated and only active while you are on this page.
+                For Faster Mining, Reach out to our customer care for guidance
             </p>
 
             {/* Total Mining Stats */}
@@ -292,10 +293,10 @@ const Mine: React.FC = () => {
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-400 mb-2">How Mining Works</h3>
                 <ul className="text-yellow-600 dark:text-yellow-300 text-sm space-y-1">
+                    <li>• For faster Mining reach out to our customer care or Agents</li>
                     <li>• Mining is simulated and only works while you're on this page</li>
                     <li>• Each mining session adds crypto directly to your wallet</li>
                     <li>• Mined amounts are added to both your specific wallet and total balance</li>
-                    <li>• Mining transactions are recorded in your transaction history</li>
                     <li>• You can mine multiple cryptocurrencies simultaneously</li>
                     <li>• Transactions are auto-saved every 30 seconds for active mining sessions</li>
                 </ul>

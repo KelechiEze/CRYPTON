@@ -23,7 +23,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ handleLogout }) => {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="lg:hidden flex items-center justify-between p-4 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-xl font-bold text-blue-600 dark:text-blue-300">KRYPTORN</h1>
+          <h1 className="text-xl font-bold text-blue-600 dark:text-blue-300">PAYCOIN</h1>
           <button onClick={() => setSidebarOpen(!isSidebarOpen)}>
             {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
