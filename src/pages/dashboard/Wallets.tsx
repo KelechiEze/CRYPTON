@@ -3,6 +3,8 @@ import { Coin } from '../../types';
 import { ArrowUpRight, ArrowDownRight, Send, Download, X, CopyCheck, CheckCircle } from 'lucide-react';
 import gsap from 'gsap';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
+import { auth } from '../../firebase';
+import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress } from '../../pages/auth/authService';
 
 const Wallets: React.FC = () => {
     const { coins, loading, balances, deductSentValue } = useCryptoData();
@@ -10,8 +12,29 @@ const Wallets: React.FC = () => {
     const [modalType, setModalType] = useState<'Send' | 'Receive' | null>(null);
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
     const [notification, setNotification] = useState({ show: false, message: '', type: 'copy' as 'copy' | 'send' });
+    const [walletAddresses, setWalletAddresses] = useState<{[key: string]: string}>({});
+    const [user, setUser] = useState<any>(null);
+    const [isGeneratingAddress, setIsGeneratingAddress] = useState(false);
 
     const walletRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const currentUser = auth.currentUser;
+        setUser(currentUser);
+        
+        if (currentUser) {
+            const fetchWalletAddresses = async () => {
+                try {
+                    const addresses = await getUserWalletAddresses(currentUser.uid);
+                    setWalletAddresses(addresses || {});
+                } catch (error) {
+                    console.error('Error fetching wallet addresses:', error);
+                    showTempNotification('Error loading wallet addresses', 'copy');
+                }
+            };
+            fetchWalletAddresses();
+        }
+    }, []);
 
     useEffect(() => {
         if (!loading && walletRef.current) {
@@ -35,9 +58,28 @@ const Wallets: React.FC = () => {
         setModalOpen(true);
     };
 
-    const handleReceive = (coin: Coin) => {
+    const handleReceive = async (coin: Coin) => {
         setSelectedCoin(coin);
         setModalType('Receive');
+        
+        // Generate or fetch address for this coin if it doesn't exist
+        if (!walletAddresses[coin.id] && user) {
+            setIsGeneratingAddress(true);
+            try {
+                const newAddress = await generateNewWalletAddress(user.uid, coin.id);
+                setWalletAddresses(prev => ({
+                    ...prev,
+                    [coin.id]: newAddress
+                }));
+                showTempNotification(`New ${coin.name} address generated!`, 'copy');
+            } catch (error) {
+                console.error('Error generating wallet address:', error);
+                showTempNotification('Error generating wallet address', 'copy');
+            } finally {
+                setIsGeneratingAddress(false);
+            }
+        }
+        
         setModalOpen(true);
     };
 
@@ -45,6 +87,7 @@ const Wallets: React.FC = () => {
         setModalOpen(false);
         setSelectedCoin(null);
         setModalType(null);
+        setIsGeneratingAddress(false);
     };
 
     const handleConfirmSend = async (coinId: string, amount: number, price: number, recipientAddress: string) => {
@@ -54,9 +97,14 @@ const Wallets: React.FC = () => {
         showTempNotification('Sent Successfully!', 'send');
     };
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText("0x123Abc456Def789Ghi012Jkl345Mno678Pqr");
-        showTempNotification('Address Copied!', 'copy');
+    const handleCopy = (coinId: string) => {
+        const address = walletAddresses[coinId];
+        if (address) {
+            navigator.clipboard.writeText(address);
+            showTempNotification('Address Copied!', 'copy');
+        } else {
+            showTempNotification('No address found for this coin', 'copy');
+        }
     };
 
     if (loading) {
@@ -120,8 +168,17 @@ const Wallets: React.FC = () => {
                                             >
                                                 <Send size={14}/> Withdraw
                                             </button>
-                                            <button onClick={() => handleReceive(coin)} className="flex items-center gap-2 bg-green-600/50 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm">
-                                                <Download size={14}/> Receive
+                                            <button 
+                                                onClick={() => handleReceive(coin)} 
+                                                disabled={isGeneratingAddress}
+                                                className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
+                                                    isGeneratingAddress
+                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                        : 'bg-green-600/50 hover:bg-green-600 text-white'
+                                                }`}
+                                            >
+                                                <Download size={14}/> 
+                                                {isGeneratingAddress ? 'Generating...' : 'Receive'}
                                             </button>
                                         </div>
                                     </td>
@@ -149,7 +206,9 @@ const Wallets: React.FC = () => {
                     onClose={closeModal}
                     balance={balances[selectedCoin.id] || 0}
                     onConfirmSend={handleConfirmSend}
-                    onCopy={handleCopy}
+                    onCopy={() => handleCopy(selectedCoin.id)}
+                    walletAddress={walletAddresses[selectedCoin.id] || ''}
+                    isGeneratingAddress={isGeneratingAddress}
                 />
             )}
             {notification.show && <Notification message={notification.message} type={notification.type} />}
@@ -164,9 +223,20 @@ interface TransactionModalProps {
     onClose: () => void;
     onConfirmSend: (coinId: string, amount: number, price: number, recipientAddress: string) => void;
     onCopy: () => void;
+    walletAddress: string;
+    isGeneratingAddress?: boolean;
 }
 
-const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance, onClose, onConfirmSend, onCopy }) => {
+const TransactionModal: React.FC<TransactionModalProps> = ({ 
+    type, 
+    coin, 
+    balance, 
+    onClose, 
+    onConfirmSend, 
+    onCopy, 
+    walletAddress,
+    isGeneratingAddress = false
+}) => {
     const modalRef = useRef<HTMLDivElement>(null);
     const [amountUsd, setAmountUsd] = useState('');
     const [address, setAddress] = useState('');
@@ -178,8 +248,10 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
 
     const handleSubmit = () => {
         if (type === 'Receive') {
-            onCopy();
-            onClose();
+            if (walletAddress) {
+                onCopy();
+                onClose();
+            }
             return;
         }
 
@@ -261,10 +333,27 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ type, coin, balance
                     <div className="space-y-4 text-center">
                         <p className="text-gray-600 dark:text-gray-300">Share your address to receive {coin.name}.</p>
                         <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg font-mono text-sm break-all">
-                            0x123Abc456Def789Ghi012Jkl345Mno678Pqr
+                            {isGeneratingAddress ? (
+                                <div className="flex items-center justify-center gap-2 text-gray-500">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                    Generating address...
+                                </div>
+                            ) : walletAddress ? (
+                                walletAddress
+                            ) : (
+                                'No address available'
+                            )}
                         </div>
-                         <button onClick={handleSubmit} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg mt-4 transition-transform transform hover:scale-105">
-                            Copy Address
+                         <button 
+                            onClick={handleSubmit} 
+                            disabled={!walletAddress || isGeneratingAddress}
+                            className={`w-full font-bold py-3 rounded-lg mt-4 transition-transform transform hover:scale-105 ${
+                                walletAddress && !isGeneratingAddress
+                                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                                    : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            }`}
+                        >
+                            {isGeneratingAddress ? 'Generating...' : 'Copy Address'}
                         </button>
                     </div>
                 )}

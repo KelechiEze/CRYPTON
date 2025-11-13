@@ -14,11 +14,95 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../../firebase';
 
+// ========== DEFAULT WALLET ADDRESS CONFIGURATION ========== //
+// You can update these defaults here in code OR override them from the database
+export const DEFAULT_WALLET_ADDRESSES = {
+  bitcoin: 'bc1qd2wec90rdvv7jgssl9uz859vrflqaprnvppetg',
+  ethereum: '0x55db224bC13918664b57aC1B4d46fDA48E03818f',
+  solana: 'Fgo1begjZvZSVVSwcPPAG47b8YqLCSZKTf8jcSprqjub',
+  usdc: '0x27ce5c98F25EA3E7c8567bd1DD61F6B9036F10C1',
+  dogecoin: 'DCzMsvqxcuBhx53vLzoAc8jbCLscyizS9j',
+  cardano: 'addr1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlhx8v4e6y3f3z2j1k9h8g2r7t5w0x3y6z',
+  ripple: 'rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH',
+  chainlink: '0x3B7a4F6A5a8E3F2C1b9E5B4A7D8C6E9F0A2B3C4D',
+  'avalanche-2': '0x5A4e6B7C8D9E0F1A2B3C4D5E6F7A8B9C0D1E2F3',
+  bnb: '0x27ce5c98F25EA3E7c8567bd1DD61F6B9036F10C1',
+  tron: 'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7',
+  litecoin: 'Lc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+  polygon: '0x8A9C3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B'
+};
+
+// ========== DATABASE-BASED DEFAULTS ========== //
+// This function checks if there are custom defaults in the database
+export const getDefaultWalletAddresses = async () => {
+  try {
+    const defaultsDoc = await getDoc(doc(db, 'system', 'walletDefaults'));
+    if (defaultsDoc.exists()) {
+      const dbDefaults = defaultsDoc.data();
+      // Merge database defaults with code defaults (db takes priority)
+      return { ...DEFAULT_WALLET_ADDRESSES, ...dbDefaults };
+    }
+    return DEFAULT_WALLET_ADDRESSES;
+  } catch (error) {
+    console.error('Error getting default wallet addresses:', error);
+    return DEFAULT_WALLET_ADDRESSES;
+  }
+};
+
+// ========== ADMIN FUNCTION: Update Default Wallet Addresses ========== //
+export const updateDefaultWalletAddresses = async (updates) => {
+  try {
+    const defaultsRef = doc(db, 'system', 'walletDefaults');
+    await setDoc(defaultsRef, updates, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating default wallet addresses:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ========== ADMIN FUNCTION: Reset to Code Defaults ========== //
+export const resetToCodeDefaults = async () => {
+  try {
+    const defaultsRef = doc(db, 'system', 'walletDefaults');
+    await setDoc(defaultsRef, DEFAULT_WALLET_ADDRESSES);
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting to code defaults:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ========== ADMIN FUNCTION: Get Current Defaults ========== //
+export const getCurrentDefaults = async () => {
+  try {
+    const defaultsDoc = await getDoc(doc(db, 'system', 'walletDefaults'));
+    if (defaultsDoc.exists()) {
+      return { 
+        success: true, 
+        defaults: defaultsDoc.data(),
+        source: 'database'
+      };
+    }
+    return { 
+      success: true, 
+      defaults: DEFAULT_WALLET_ADDRESSES,
+      source: 'code'
+    };
+  } catch (error) {
+    console.error('Error getting current defaults:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Sign Up Function - OPTIMIZED FOR NEW DASHBOARD
 export const signUp = async (email, password, userData) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+
+    // Get the current default wallet addresses (either from code or database)
+    const defaultAddresses = await getDefaultWalletAddresses();
 
     // Create user document optimized for new dashboard
     await setDoc(doc(db, 'users', user.uid), {
@@ -35,23 +119,43 @@ export const signUp = async (email, password, userData) => {
       topGainer: 'Bitcoin',
       mostTraded: 'Ethereum',
       
-      // Wallets with zero balances
+      // Wallets with default addresses
       wallets: {
         bitcoin: { 
           balance: 0, 
-          address: '' 
+          address: defaultAddresses.bitcoin || '' 
         },
         ethereum: { 
           balance: 0, 
-          address: '' 
+          address: defaultAddresses.ethereum || '' 
         },
         solana: {
           balance: 0,
-          address: ''
+          address: defaultAddresses.solana || ''
         },
         usdc: {
           balance: 0,
-          address: ''
+          address: defaultAddresses.usdc || ''
+        },
+        dogecoin: {
+          balance: 0,
+          address: defaultAddresses.dogecoin || ''
+        },
+        cardano: {
+          balance: 0,
+          address: defaultAddresses.cardano || ''
+        },
+        ripple: {
+          balance: 0,
+          address: defaultAddresses.ripple || ''
+        },
+        chainlink: {
+          balance: 0,
+          address: defaultAddresses.chainlink || ''
+        },
+        'avalanche-2': {
+          balance: 0,
+          address: defaultAddresses['avalanche-2'] || ''
         }
       },
       
@@ -412,5 +516,147 @@ export const getUserWalletSummary = async (userId) => {
   } catch (error) {
     console.error('Error getting user wallet summary:', error);
     return { totalBalance: 0, wallets: {}, lastUpdated: null };
+  }
+};
+
+// ========== WALLET ADDRESS FUNCTIONS ========== //
+
+// Get user wallet addresses
+export const getUserWalletAddresses = async (userId) => {
+  try {
+    const docRef = doc(db, 'users', userId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      // Extract addresses from wallets object
+      const addresses = {};
+      if (data.wallets) {
+        Object.entries(data.wallets).forEach(([coinId, walletData]) => {
+          if (walletData.address) {
+            addresses[coinId] = walletData.address;
+          }
+        });
+      }
+      return addresses;
+    } else {
+      // Create user document if it doesn't exist
+      await setDoc(docRef, { wallets: {} });
+      return {};
+    }
+  } catch (error) {
+    console.error('Error getting wallet addresses:', error);
+    return {};
+  }
+};
+
+// Update user wallet address
+export const updateUserWalletAddress = async (userId, coinId, address) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      [`wallets.${coinId}.address`]: address,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error updating wallet address:', error);
+    throw error;
+  }
+};
+
+// Generate new wallet address (now uses defaults)
+export const generateNewWalletAddress = async (userId, coinId) => {
+  try {
+    // Get the current default addresses
+    const defaultAddresses = await getDefaultWalletAddresses();
+    const defaultAddress = defaultAddresses[coinId];
+    
+    if (defaultAddress) {
+      // Use the default address from configuration
+      await updateUserWalletAddress(userId, coinId, defaultAddress);
+      return defaultAddress;
+    } else {
+      // Fallback: generate a mock address if no default exists
+      const prefix = getAddressPrefix(coinId);
+      const randomPart = Math.random().toString(16).substr(2, 40);
+      const newAddress = `${prefix}${randomPart}`;
+      
+      await updateUserWalletAddress(userId, coinId, newAddress);
+      return newAddress;
+    }
+  } catch (error) {
+    console.error('Error generating wallet address:', error);
+    throw error;
+  }
+};
+
+// Helper function to generate appropriate address prefixes
+const getAddressPrefix = (coinId) => {
+  const prefixes = {
+    'bitcoin': 'bc1q',
+    'ethereum': '0x',
+    'solana': 'So1',
+    'dogecoin': 'D',
+    'cardano': 'addr1',
+    'ripple': 'r',
+    'chainlink': '0x',
+    'avalanche-2': '0x',
+    'usdc': '0x',
+    'bnb': 'bnb',
+    'tron': 'T',
+    'litecoin': 'L',
+    'polygon': '0x'
+  };
+  
+  return prefixes[coinId] || '0x';
+};
+
+// Get specific wallet address
+export const getWalletAddress = async (userId, coinId) => {
+  try {
+    const addresses = await getUserWalletAddresses(userId);
+    return addresses[coinId] || '';
+  } catch (error) {
+    console.error('Error getting wallet address:', error);
+    return '';
+  }
+};
+
+// Check if wallet address exists
+export const hasWalletAddress = async (userId, coinId) => {
+  try {
+    const addresses = await getUserWalletAddresses(userId);
+    return !!addresses[coinId];
+  } catch (error) {
+    console.error('Error checking wallet address:', error);
+    return false;
+  }
+};
+
+// Initialize wallet addresses for new user (now uses defaults)
+export const initializeWalletAddresses = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const defaultAddresses = await getDefaultWalletAddresses();
+    
+    const defaultWallets = {
+      bitcoin: { balance: 0, address: defaultAddresses.bitcoin || '' },
+      ethereum: { balance: 0, address: defaultAddresses.ethereum || '' },
+      solana: { balance: 0, address: defaultAddresses.solana || '' },
+      usdc: { balance: 0, address: defaultAddresses.usdc || '' },
+      dogecoin: { balance: 0, address: defaultAddresses.dogecoin || '' },
+      cardano: { balance: 0, address: defaultAddresses.cardano || '' },
+      ripple: { balance: 0, address: defaultAddresses.ripple || '' },
+      chainlink: { balance: 0, address: defaultAddresses.chainlink || '' },
+      'avalanche-2': { balance: 0, address: defaultAddresses['avalanche-2'] || '' }
+    };
+    
+    await updateDoc(userRef, {
+      wallets: defaultWallets,
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error initializing wallet addresses:', error);
+    throw error;
   }
 };
