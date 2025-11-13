@@ -13,6 +13,8 @@ import Settings from './pages/dashboard/Settings';
 import Profile from './pages/dashboard/Profiles';
 import Mine from './pages/dashboard/Mine';
 import { ThemeProvider } from './contexts/ThemeContext';
+import TawkToChat from './components/TawkToChat';
+import CustomerCareButton from './components/CustomerCareButton';
 
 const App = () => {
   const [loading, setLoading] = useState(true);
@@ -103,6 +105,14 @@ const App = () => {
           {/* Catch-all route for authenticated users */}
           <Route path="*" element={isAuthenticated ? <Overview /> : <Signup onSignup={handleLogin} />} />
         </Routes>
+
+        {/* Tawk.to Customer Care - Only show when user is authenticated */}
+        {isAuthenticated && (
+          <>
+            <TawkToChat />
+            <CustomerCareButton />
+          </>
+        )}
       </div>
     </ThemeProvider>
   );

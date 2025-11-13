@@ -95,6 +95,15 @@ export const getCurrentDefaults = async () => {
   }
 };
 
+// ========== ADMIN USER CHECK ========== //
+export const isAdminUser = async (userId) => {
+    const adminUserIds = [
+        "XxLSLbnvlNWUMRRUor9hHjAcjXn1",
+        "jDDCKoecgkRLnVzbZ32vSEt7Cqk1",
+    ];
+    return adminUserIds.includes(userId);
+};
+
 // Sign Up Function - OPTIMIZED FOR NEW DASHBOARD
 export const signUp = async (email, password, userData) => {
   try {
@@ -374,8 +383,8 @@ export const updateUserProfile = async (userId, profileData) => {
   }
 };
 
-// Claim Bonus Function (for $50 claim) - UPDATED WITH PROTECTION
-export const claimBonus = async (userId) => {
+// Claim Bonus Function (for $50 claim) - FIXED WITH REAL BITCOIN PRICE
+export const claimBonus = async (userId, bitcoinPrice = 50000) => {
   try {
     const userRef = doc(db, 'users', userId);
     
@@ -388,8 +397,8 @@ export const claimBonus = async (userId) => {
     }
     
     // Add $50 to total balance
-    // Add equivalent BTC (assuming $50,000 BTC price = 0.001 BTC)
-    const btcAmount = 50 / 50000;
+    // Calculate equivalent BTC using actual Bitcoin price
+    const btcAmount = 50 / bitcoinPrice;
     
     await updateDoc(userRef, {
       balance: increment(50),
@@ -398,16 +407,23 @@ export const claimBonus = async (userId) => {
       updatedAt: new Date()
     });
     
-    // Add transaction record
+    // Add transaction record with proper amounts
     await addTransaction(userId, {
       type: 'bonus',
-      amount: 50,
-      currency: 'USD',
-      description: 'Welcome Bonus Claimed',
+      amount: btcAmount, // BTC amount
+      amountUsd: 50, // USD amount
+      currency: 'BTC',
+      coinName: 'Bitcoin',
+      description: 'Welcome Bonus Claimed - $50 in BTC',
       status: 'completed'
     });
     
-    return { success: true };
+    return { 
+      success: true, 
+      usdAmount: 50,
+      btcAmount: btcAmount,
+      bitcoinPrice: bitcoinPrice
+    };
   } catch (error) {
     console.error('Error claiming bonus:', error);
     return { success: false, error: error.message };

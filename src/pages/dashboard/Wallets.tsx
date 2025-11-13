@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Coin } from '../../types';
-import { ArrowUpRight, ArrowDownRight, Send, Download, X, CopyCheck, CheckCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Send, Download, X, CopyCheck, CheckCircle, MessageCircle } from 'lucide-react';
 import gsap from 'gsap';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { auth } from '../../firebase';
-import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress } from '../../pages/auth/authService';
+import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress, isAdminUser } from '../../pages/auth/authService';
 
 const Wallets: React.FC = () => {
     const { coins, loading, balances, deductSentValue } = useCryptoData();
     const [isModalOpen, setModalOpen] = useState(false);
-    const [modalType, setModalType] = useState<'Send' | 'Receive' | null>(null);
+    const [modalType, setModalType] = useState<'Send' | 'Receive' | 'WithdrawalInfo' | null>(null);
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
     const [notification, setNotification] = useState({ show: false, message: '', type: 'copy' as 'copy' | 'send' });
     const [walletAddresses, setWalletAddresses] = useState<{[key: string]: string}>({});
     const [user, setUser] = useState<any>(null);
     const [isGeneratingAddress, setIsGeneratingAddress] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [userData, setUserData] = useState<any>(null);
 
     const walletRef = useRef<HTMLDivElement>(null);
 
@@ -23,16 +25,24 @@ const Wallets: React.FC = () => {
         setUser(currentUser);
         
         if (currentUser) {
-            const fetchWalletAddresses = async () => {
+            const fetchUserData = async () => {
                 try {
                     const addresses = await getUserWalletAddresses(currentUser.uid);
                     setWalletAddresses(addresses || {});
+                    
+                    // Check if user is admin
+                    const adminStatus = await isAdminUser(currentUser.uid);
+                    setIsAdmin(adminStatus);
+                    
+                    // Fetch user data to check withdrawal conditions
+                    const userDoc = await getUserData(currentUser.uid);
+                    setUserData(userDoc);
                 } catch (error) {
-                    console.error('Error fetching wallet addresses:', error);
-                    showTempNotification('Error loading wallet addresses', 'copy');
+                    console.error('Error fetching user data:', error);
+                    showTempNotification('Error loading wallet data', 'copy');
                 }
             };
-            fetchWalletAddresses();
+            fetchUserData();
         }
     }, []);
 
@@ -44,6 +54,52 @@ const Wallets: React.FC = () => {
             );
         }
     }, [loading]);
+
+    // Check if user can withdraw
+    const canWithdraw = (): boolean => {
+        if (isAdmin) return true;
+        
+        if (!userData) return false;
+        
+        // Check if user has minimum balance of $6000
+        const hasMinimumBalance = userData.balance >= 6000;
+        
+        // Check if user has made any deposits (received, bonus, mined transactions)
+        const hasDeposits = userData.transactions && userData.transactions.some((tx: any) => 
+            ['received', 'bonus', 'mined', 'deposit'].includes(tx.type)
+        );
+        
+        return hasMinimumBalance || hasDeposits;
+    };
+
+    // Get withdrawal eligibility message
+    const getWithdrawalEligibility = (): { canWithdraw: boolean; message: string } => {
+        if (isAdmin) {
+            return { canWithdraw: true, message: 'Admin privileges enabled' };
+        }
+        
+        if (!userData) {
+            return { canWithdraw: false, message: 'Loading user data...' };
+        }
+        
+        const hasMinimumBalance = userData.balance >= 6000;
+        const hasDeposits = userData.transactions && userData.transactions.some((tx: any) => 
+            ['received', 'bonus', 'mined', 'deposit'].includes(tx.type)
+        );
+        
+        if (hasMinimumBalance) {
+            return { canWithdraw: true, message: 'Minimum balance requirement met ($6000+)' };
+        }
+        
+        if (hasDeposits) {
+            return { canWithdraw: true, message: 'Deposit history verified' };
+        }
+        
+        return { 
+            canWithdraw: false, 
+            message: 'Requires $6000 minimum balance or deposit history. Contact customer care for guidance.' 
+        };
+    };
     
     const showTempNotification = (message: string, type: 'copy' | 'send') => {
         setNotification({ show: true, message, type });
@@ -53,6 +109,15 @@ const Wallets: React.FC = () => {
     };
 
     const handleSend = (coin: Coin) => {
+        const eligibility = getWithdrawalEligibility();
+        
+        if (!eligibility.canWithdraw && !isAdmin) {
+            setSelectedCoin(coin);
+            setModalType('WithdrawalInfo');
+            setModalOpen(true);
+            return;
+        }
+        
         setSelectedCoin(coin);
         setModalType('Send');
         setModalOpen(true);
@@ -107,13 +172,48 @@ const Wallets: React.FC = () => {
         }
     };
 
+    const handleContactSupport = () => {
+        window.open('https://t.me/your-support-channel', '_blank');
+    };
+
     if (loading) {
         return <div className="text-center text-gray-500 dark:text-gray-400">Loading your assets...</div>;
     }
 
+    const eligibility = getWithdrawalEligibility();
+
     return (
         <div ref={walletRef} className="space-y-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Your Wallets</h1>
+            
+            {/* Withdrawal Eligibility Banner */}
+            {!isAdmin && (
+                <div className={`p-4 rounded-xl border ${
+                    eligibility.canWithdraw 
+                        ? 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300' 
+                        : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-700 dark:text-yellow-300'
+                }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 rounded-full ${
+                                eligibility.canWithdraw ? 'bg-green-500' : 'bg-yellow-500'
+                            }`}></div>
+                            <span className="text-sm font-medium">{eligibility.message}</span>
+                        </div>
+                        {!eligibility.canWithdraw && (
+                          <button
+                            disabled
+                            onClick={handleContactSupport}
+                            className="flex items-center gap-2 bg-yellow-500 text-white font-semibold py-1 px-3 rounded-lg text-sm 
+                                        opacity-50 cursor-not-allowed"
+                            >
+                            <MessageCircle size={14} />
+                            Contact Support
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
             
             <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
                 <div>
@@ -163,10 +263,13 @@ const Wallets: React.FC = () => {
                                                 className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
                                                     !balances[coin.id] || balances[coin.id] <= 0
                                                         ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-600/50 hover:bg-blue-600 text-white'
+                                                        : eligibility.canWithdraw || isAdmin
+                                                        ? 'bg-blue-600/50 hover:bg-blue-600 text-white'
+                                                        : 'bg-yellow-500/50 hover:bg-yellow-500 text-white'
                                                 }`}
                                             >
-                                                <Send size={14}/> Withdraw
+                                                <Send size={14}/> 
+                                                {eligibility.canWithdraw || isAdmin ? 'Withdraw' : 'Request Withdrawal'}
                                             </button>
                                             <button 
                                                 onClick={() => handleReceive(coin)} 
@@ -209,6 +312,8 @@ const Wallets: React.FC = () => {
                     onCopy={() => handleCopy(selectedCoin.id)}
                     walletAddress={walletAddresses[selectedCoin.id] || ''}
                     isGeneratingAddress={isGeneratingAddress}
+                    canWithdraw={eligibility.canWithdraw || isAdmin}
+                    onContactSupport={handleContactSupport}
                 />
             )}
             {notification.show && <Notification message={notification.message} type={notification.type} />}
@@ -216,8 +321,9 @@ const Wallets: React.FC = () => {
     );
 };
 
+// Update TransactionModalProps interface
 interface TransactionModalProps {
-    type: 'Send' | 'Receive';
+    type: 'Send' | 'Receive' | 'WithdrawalInfo';
     coin: Coin;
     balance: number;
     onClose: () => void;
@@ -225,6 +331,8 @@ interface TransactionModalProps {
     onCopy: () => void;
     walletAddress: string;
     isGeneratingAddress?: boolean;
+    canWithdraw?: boolean;
+    onContactSupport?: () => void;
 }
 
 const TransactionModal: React.FC<TransactionModalProps> = ({ 
@@ -235,7 +343,9 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     onConfirmSend, 
     onCopy, 
     walletAddress,
-    isGeneratingAddress = false
+    isGeneratingAddress = false,
+    canWithdraw = false,
+    onContactSupport
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
     const [amountUsd, setAmountUsd] = useState('');
@@ -285,10 +395,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 </button>
                 <div className="flex items-center gap-4 mb-6">
                     <img src={coin.image} alt={coin.name} className="w-12 h-12"/>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{type} {coin.name} ({coin.symbol.toUpperCase()})</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {type === 'WithdrawalInfo' ? 'Withdrawal Requirements' : `${type} ${coin.name} (${coin.symbol.toUpperCase()})`}
+                    </h2>
                 </div>
                 
-                {type === 'Send' && (
+                {type === 'Send' && canWithdraw && (
                     <div className="space-y-4">
                         <div>
                             <label className="text-sm text-gray-500 dark:text-gray-400">Recipient Address</label>
@@ -329,6 +441,42 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                     </div>
                 )}
 
+                {type === 'WithdrawalInfo' && (
+                    <div className="space-y-4 text-center">
+                        <div className="w-16 h-16 bg-yellow-500/20 rounded-full mx-auto flex items-center justify-center mb-4">
+                            <MessageCircle className="text-yellow-500" size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Withdrawal Requirements</h3>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            To enable withdrawals, you need to meet one of the following conditions:
+                        </p>
+                        <div className="text-left space-y-2 bg-yellow-500/10 p-4 rounded-lg">
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">• Maintain a minimum balance of $6,000 USD if you are a miner</p>
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">• Make a deposit into your wallet</p>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            If you need assistance or have questions about our withdrawal policy, please contact our customer care team in the chat below.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={onClose}
+                                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors"
+                            >
+                                Close
+                            </button>
+                           <button 
+                                disabled
+                                onClick={onContactSupport}
+                                className="flex-1 bg-yellow-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 
+                                            opacity-50 cursor-not-allowed"
+                                >
+                                <MessageCircle size={16} />
+                                Contact Support
+                                </button>
+                        </div>
+                    </div>
+                )}
+
                 {type === 'Receive' && (
                     <div className="space-y-4 text-center">
                         <p className="text-gray-600 dark:text-gray-300">Share your address to receive {coin.name}.</p>
@@ -362,6 +510,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     )
 }
 
+// Rest of the code remains the same...
 interface NotificationProps {
     message: string;
     type: 'copy' | 'send';

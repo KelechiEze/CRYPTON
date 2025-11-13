@@ -336,17 +336,24 @@ const Overview: React.FC = () => {
         setIsClaiming(true);
         
         try {
-            const result = await claimBonus(user.uid);
+            // Get current Bitcoin price from the coins data
+            const bitcoin = coins.find(coin => coin.symbol.toLowerCase() === 'btc');
+            const bitcoinPrice = bitcoin?.current_price || 50000; // Fallback to $50,000 if not available
+            
+            const result = await claimBonus(user.uid, bitcoinPrice);
             
             if (result.success) {
                 setHasClaimed(true);
                 setIsClaimModalOpen(true);
                 
+                // Update local state with the actual amounts
                 const newBalance = calculateTotalBalance() + 50;
+                const btcAmount = result.btcAmount || (50 / bitcoinPrice);
+                
                 setUserData(prev => ({
                     ...prev,
                     balance: newBalance,
-                    bitcoinBalance: prev.bitcoinBalance + (50 / 50000)
+                    bitcoinBalance: prev.bitcoinBalance + btcAmount
                 }));
             } else {
                 alert(`Failed to claim bonus: ${result.error}`);
@@ -377,8 +384,15 @@ const Overview: React.FC = () => {
     const formatAmount = (transaction: Transaction): string => {
         try {
             if (transaction.type === 'bonus') {
-                return `$${(transaction.amountUsd || 0).toFixed(2)}`;
+                // For bonus transactions, show both USD and BTC amounts
+                if (transaction.amountUsd && transaction.amount) {
+                    return `$${transaction.amountUsd.toFixed(2)} (${transaction.amount.toFixed(6)} BTC)`;
+                } else if (transaction.amountUsd) {
+                    return `$${transaction.amountUsd.toFixed(2)}`;
+                }
+                return '$50.00';
             }
+            
             const amount = transaction.amount || 0;
             const currency = transaction.currency || 'USD';
             
