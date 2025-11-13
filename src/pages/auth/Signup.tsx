@@ -38,6 +38,7 @@ const countries = [
 
 const Signup: React.FC<SignupProps> = ({ onSignup }) => {
     const formRef = useRef<HTMLDivElement>(null);
+    const phoneInputRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [modalStep, setModalStep] = useState<'none' | 'connect' | 'creating' | 'connecting'>('none');
@@ -50,6 +51,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
         password: '',
         confirmPassword: ''
     });
+    const [phoneError, setPhoneError] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -60,6 +62,96 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             { opacity: 1, scale: 1, duration: 0.5, ease: 'power2.out' }
         );
     }, []);
+
+    const validatePhoneNumber = (phone: string): boolean => {
+        // Remove any non-digit characters
+        const cleanPhone = phone.replace(/\D/g, '');
+        
+        // Check if it's a valid length (typically 10-15 digits for international numbers)
+        return cleanPhone.length >= 10 && cleanPhone.length <= 15;
+    };
+
+    const formatPhoneNumber = (value: string): string => {
+        // Remove all non-digit characters
+        const cleanValue = value.replace(/\D/g, '');
+        
+        // Limit to 15 digits maximum
+        const limitedValue = cleanValue.slice(0, 15);
+        
+        // Format with spaces for readability (optional)
+        if (limitedValue.length <= 3) {
+            return limitedValue;
+        } else if (limitedValue.length <= 6) {
+            return `${limitedValue.slice(0, 3)} ${limitedValue.slice(3)}`;
+        } else if (limitedValue.length <= 10) {
+            return `${limitedValue.slice(0, 3)} ${limitedValue.slice(3, 6)} ${limitedValue.slice(6)}`;
+        } else {
+            return `${limitedValue.slice(0, 3)} ${limitedValue.slice(3, 6)} ${limitedValue.slice(6, 10)} ${limitedValue.slice(10)}`;
+        }
+    };
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value;
+        const formattedValue = formatPhoneNumber(rawValue);
+        
+        setFormData({
+            ...formData,
+            phone: formattedValue
+        });
+
+        // Validate phone number in real-time
+        const cleanPhone = formattedValue.replace(/\D/g, '');
+        if (cleanPhone.length > 0) {
+            if (cleanPhone.length < 10) {
+                setPhoneError('Phone number must be at least 10 digits');
+            } else if (cleanPhone.length > 15) {
+                setPhoneError('Phone number cannot exceed 15 digits');
+            } else {
+                setPhoneError('');
+            }
+        } else {
+            setPhoneError('');
+        }
+        
+        setError(''); // Clear general error when user types
+    };
+
+    const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // Allow only numbers, backspace, delete, tab, arrow keys, and navigation keys
+        const allowedKeys = [
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+            'Backspace', 'Delete', 'Tab', 
+            'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+            'Home', 'End'
+        ];
+        
+        if (!allowedKeys.includes(e.key) && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+        }
+    };
+
+    const handlePhonePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const pasteData = e.clipboardData.getData('text');
+        // If pasted data contains non-digits, prevent the paste
+        if (/\D/.test(pasteData)) {
+            e.preventDefault();
+        }
+    };
+
+    // Clear phone number completely
+    const clearPhoneNumber = () => {
+        setFormData({
+            ...formData,
+            phone: ''
+        });
+        setPhoneError('');
+        // Focus back on the input after clearing
+        setTimeout(() => {
+            if (phoneInputRef.current) {
+                phoneInputRef.current.focus();
+            }
+        }, 0);
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({
@@ -74,6 +166,14 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
         setLoading(true);
         setError('');
         
+        // Phone number validation
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        if (!validatePhoneNumber(formData.phone)) {
+            setError('Please enter a valid phone number (10-15 digits)');
+            setLoading(false);
+            return;
+        }
+
         // Basic validation
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match!');
@@ -87,7 +187,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
             return;
         }
 
-        if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.country) {
+        if (!formData.firstName || !formData.lastName || !formData.email || !formData.country) {
             setError('Please fill in all required fields!');
             setLoading(false);
             return;
@@ -99,10 +199,13 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
 
     const handleSignup = async (connectAI: boolean = false) => {
         try {
+            // Clean phone number before sending (remove formatting spaces)
+            const cleanPhone = formData.phone.replace(/\D/g, '');
+            
             const result = await signUp(formData.email, formData.password, {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                phone: formData.phone,
+                phone: cleanPhone, // Send cleaned phone number
                 country: formData.country,
                 aiTrading: { connected: connectAI, active: false }
             });
@@ -183,15 +286,35 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                     </div>
                     <div className="relative">
                         <input 
+                            ref={phoneInputRef}
                             type="tel" 
                             name="phone"
-                            placeholder="Phone Number" 
+                            placeholder="Phone Number (10-15 digits)" 
                             required 
                             value={formData.phone}
-                            onChange={handleChange}
-                            className="w-full bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-4 pr-10 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300" 
+                            onChange={handlePhoneChange}
+                            onKeyDown={handlePhoneKeyDown}
+                            onPaste={handlePhonePaste}
+                            pattern="[0-9\s]*"
+                            inputMode="numeric"
+                            className={`w-full bg-gray-100 dark:bg-gray-900/70 border ${
+                                phoneError ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                            } rounded-lg py-3 pl-4 pr-20 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300`} 
                         />
-                        <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
+                        <Phone className="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
+                        {formData.phone && (
+                            <button
+                                type="button"
+                                onClick={clearPhoneNumber}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                                aria-label="Clear phone number"
+                            >
+                                ×
+                            </button>
+                        )}
+                        {phoneError && (
+                            <p className="text-red-500 text-xs mt-1 absolute -bottom-5 left-0">{phoneError}</p>
+                        )}
                     </div>
                     <div className="relative">
                         <select 
@@ -248,7 +371,7 @@ const Signup: React.FC<SignupProps> = ({ onSignup }) => {
                     </div>
                     <button 
                         type="submit" 
-                        disabled={loading}
+                        disabled={loading || !!phoneError}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Processing...' : 'Sign Up'}
