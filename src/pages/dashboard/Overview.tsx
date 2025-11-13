@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon } from 'lucide-react';
 import gsap from 'gsap';
 import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
@@ -19,6 +19,159 @@ interface Transaction {
     timestamp: any;
     recipientAddress?: string;
 }
+
+// Enhanced withdrawal data with realistic user data and crypto transactions
+const withdrawalData = [
+  { name: 'Alex Chen', amount: 12500, crypto: 'BTC', cryptoAmount: 0.25, type: 'withdrawal' },
+  { name: 'Sarah Johnson', amount: 8400, crypto: 'ETH', cryptoAmount: 2.8, type: 'deposit' },
+  { name: 'Mike Rodriguez', amount: 15600, crypto: 'SOL', cryptoAmount: 85, type: 'withdrawal' },
+  { name: 'Emma Wilson', amount: 9200, crypto: 'BTC', cryptoAmount: 0.18, type: 'deposit' },
+  { name: 'James Brown', amount: 11300, crypto: 'ETH', cryptoAmount: 3.7, type: 'withdrawal' },
+  { name: 'Lisa Wang', amount: 6700, crypto: 'DOGE', cryptoAmount: 12500, type: 'deposit' },
+  { name: 'David Kim', amount: 18900, crypto: 'BTC', cryptoAmount: 0.38, type: 'withdrawal' },
+  { name: 'Maria Garcia', amount: 14200, crypto: 'XRP', cryptoAmount: 950, type: 'deposit' },
+  { name: 'Kevin Smith', amount: 7800, crypto: 'ETH', cryptoAmount: 2.6, type: 'withdrawal' },
+  { name: 'Jennifer Lee', amount: 16500, crypto: 'SOL', cryptoAmount: 90, type: 'deposit' },
+  { name: 'Robert Taylor', amount: 10500, crypto: 'BTC', cryptoAmount: 0.21, type: 'withdrawal' },
+  { name: 'Amanda Clark', amount: 12800, crypto: 'BNB', cryptoAmount: 420, type: 'deposit' },
+  { name: 'Christopher Lee', amount: 9500, crypto: 'LTC', cryptoAmount: 120, type: 'withdrawal' },
+  { name: 'Michelle Davis', amount: 11200, crypto: 'XRP', cryptoAmount: 18500, type: 'deposit' },
+  { name: 'Daniel Martinez', amount: 14300, crypto: 'BNB', cryptoAmount: 35, type: 'withdrawal' },
+  { name: 'Jessica Wilson', amount: 7600, crypto: 'DOGE', cryptoAmount: 52000, type: 'deposit' },
+  { name: 'Matthew Thompson', amount: 16800, crypto: 'USDC', cryptoAmount: 12500, type: 'withdrawal' },
+  { name: 'Ashley Anderson', amount: 8900, crypto: 'ETH', cryptoAmount: 680, type: 'deposit' },
+  { name: 'Joshua Thomas', amount: 13200, crypto: 'SOL', cryptoAmount: 950, type: 'withdrawal' },
+  { name: 'Stephanie White', amount: 10100, crypto: 'BTC', cryptoAmount: 820, type: 'deposit' },
+  { name: 'Andrew Harris', amount: 15700, crypto: 'XRP', cryptoAmount: 12500, type: 'withdrawal' },
+  { name: 'Nicole Martin', amount: 7200, crypto: 'DOGE', cryptoAmount: 1450, type: 'deposit' },
+  { name: 'Brian Jackson', amount: 13900, crypto: 'BNB', cryptoAmount: 380, type: 'withdrawal' },
+  { name: 'Rebecca Moore', amount: 9800, crypto: 'LTC', cryptoAmount: 420, type: 'deposit' },
+  { name: 'Jonathan Taylor', amount: 16400, crypto: 'ETH', cryptoAmount: 2850, type: 'withdrawal' },
+  { name: 'Samantha Lee', amount: 8300, crypto: 'USDC', cryptoAmount: 45, type: 'deposit' },
+  { name: 'Nicholas Clark', amount: 12100, crypto: 'BTC', cryptoAmount: 12, type: 'withdrawal' },
+  { name: 'Megan Lewis', amount: 10700, crypto: 'SOL', cryptoAmount: 65, type: 'deposit' },
+  { name: 'Justin Walker', amount: 17900, crypto: 'BNB', cryptoAmount: 3.2, type: 'withdrawal' },
+  { name: 'Rachel Hall', amount: 9200, crypto: 'XRP', cryptoAmount: 850, type: 'deposit' },
+  { name: 'Brandon Young', amount: 13400, crypto: 'DOGE', cryptoAmount: 4200, type: 'withdrawal' },
+  { name: 'Lauren Allen', amount: 8800, crypto: 'LTC', cryptoAmount: 3800, type: 'deposit' },
+  { name: 'Patrick King', amount: 15200, crypto: 'ETH', cryptoAmount: 1250, type: 'withdrawal' },
+  { name: 'Olivia Wright', amount: 9600, crypto: 'USDC', cryptoAmount: 320, type: 'deposit' },
+  { name: 'Samuel Scott', amount: 12800, crypto: 'BTC', cryptoAmount: 8500, type: 'withdrawal' },
+  { name: 'Hannah Green', amount: 10400, crypto: 'SOL', cryptoAmount: 2800, type: 'deposit' },
+  { name: 'Benjamin Baker', amount: 17300, crypto: 'BNB', cryptoAmount: 12500, type: 'withdrawal' },
+  { name: 'Victoria Adams', amount: 7900, crypto: 'XRP', cryptoAmount: 18500, type: 'deposit' },
+  { name: 'Kevin Nelson', amount: 14100, crypto: 'DOGE', cryptoAmount: 450, type: 'withdrawal' },
+  { name: 'Christina Carter', amount: 11300, crypto: 'LTC', cryptoAmount: 3800, type: 'deposit' },
+  { name: 'Jacob Mitchell', amount: 16700, crypto: 'ETH', cryptoAmount: 950, type: 'withdrawal' },
+  { name: 'Amanda Perez', amount: 8700, crypto: 'USDC', cryptoAmount: 12500, type: 'deposit' },
+  { name: 'Tyler Roberts', amount: 13800, crypto: 'BTC', cryptoAmount: 1800, type: 'withdrawal' },
+  { name: 'Brittany Turner', amount: 9900, crypto: 'SOL', cryptoAmount: 220, type: 'deposit' },
+  { name: 'Alexander Phillips', amount: 15400, crypto: 'BNB', cryptoAmount: 8500, type: 'withdrawal' },
+  { name: 'Kayla Campbell', amount: 8100, crypto: 'XRP', cryptoAmount: 125000, type: 'deposit' },
+  { name: 'Nathan Parker', amount: 14600, crypto: 'DOGE', cryptoAmount: 18500, type: 'withdrawal' },
+  { name: 'Danielle Evans', amount: 10200, crypto: 'LTC', cryptoAmount: 4200, type: 'deposit' },
+  { name: 'Gabriel Edwards', amount: 16100, crypto: 'ETH', cryptoAmount: 12500, type: 'withdrawal' },
+  { name: 'Maria Collins', amount: 9300, crypto: 'USDC', cryptoAmount: 8500, type: 'deposit' }
+];
+
+// Transaction Item Component for reusability
+const TransactionItem: React.FC<{ item: any; index: number }> = ({ item, index }) => (
+  <div key={index} className="flex-shrink-0 flex items-center gap-4 px-4 py-3 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-gray-600/50 shadow-sm">
+    {/* Transaction Icon */}
+    <div className={`p-2 rounded-full ${item.type === 'withdrawal' ? 'bg-red-500/10' : 'bg-green-500/10'}`}>
+        {item.type === 'withdrawal' ? (
+            <ArrowUp className="text-red-500" size={16} />
+        ) : (
+            <ArrowDown className="text-green-500" size={16} />
+        )}
+    </div>
+    
+    {/* Transaction Details */}
+    <div className="flex items-center gap-4">
+        <div>
+            <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                {item.name} {item.type === 'withdrawal' ? 'withdrew' : 'deposited'}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+                ${item.amount.toLocaleString()}
+            </p>
+        </div>
+    </div>
+
+    {/* Crypto Badge */}
+    <div className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full">
+        <span className="text-white text-xs font-medium">{item.crypto}</span>
+    </div>
+  </div>
+);
+
+const WithdrawalTicker: React.FC = () => {
+    return (
+        <div className="group relative w-full overflow-hidden bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-lg">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-500/10 rounded-xl">
+                    <TrendingUpIcon className="text-blue-500" size={20} />
+                </div>
+                <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">Live Transactions</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Real-time user activity</p>
+                </div>
+            </div>
+
+            {/* Ticker Container */}
+            <div className="relative overflow-hidden">
+                <div className="flex">
+                    {/* First set - visible */}
+                    <div className="animate-scroll flex gap-6 flex-none">
+                        {withdrawalData.map((item, index) => (
+                            <TransactionItem key={`first-${index}`} item={item} index={index} />
+                        ))}
+                    </div>
+                    {/* Second set - for seamless loop */}
+                    <div className="animate-scroll flex gap-6 flex-none" style={{ animationDelay: '100s' }}>
+                        {withdrawalData.map((item, index) => (
+                            <TransactionItem key={`second-${index}`} item={item} index={index} />
+                        ))}
+                    </div>
+                </div>
+                
+                {/* Gradient Overlays */}
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white/50 dark:from-gray-800/50 to-transparent pointer-events-none"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white/50 dark:from-gray-800/50 to-transparent pointer-events-none"></div>
+            </div>
+
+            {/* Status Bar */}
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Live updates</span>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {withdrawalData.length} transactions today
+                </div>
+            </div>
+
+            {/* CSS for the scrolling animation */}
+            <style>{`
+                @keyframes scroll {
+                    0% {
+                        transform: translateX(0);
+                    }
+                    100% {
+                        transform: translateX(-100%);
+                    }
+                }
+                .animate-scroll {
+                    animation: scroll 160s linear infinite;
+                }
+                .group:hover .animate-scroll {
+                    animation-play-state: paused;
+                }
+            `}</style>
+        </div>
+    );
+};
 
 const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
@@ -341,6 +494,9 @@ const Overview: React.FC = () => {
     return (
         <div ref={overviewRef} className="space-y-8">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome To Paycoin</h1>
+
+            {/* Enhanced Withdrawal Ticker - Added Here */}
+            <WithdrawalTicker />
 
             {/* Main Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

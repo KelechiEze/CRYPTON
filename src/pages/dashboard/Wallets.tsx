@@ -118,7 +118,7 @@ const Wallets: React.FC = () => {
                                                         : 'bg-blue-600/50 hover:bg-blue-600 text-white'
                                                 }`}
                                             >
-                                                <Send size={14}/> Send
+                                                <Send size={14}/> Withdraw
                                             </button>
                                             <button onClick={() => handleReceive(coin)} className="flex items-center gap-2 bg-green-600/50 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm">
                                                 <Download size={14}/> Receive
