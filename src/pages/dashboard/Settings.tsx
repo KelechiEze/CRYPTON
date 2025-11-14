@@ -28,7 +28,7 @@ const Settings: React.FC = () => {
     }
 
     const handleThemeChange = (newTheme: 'light' | 'dark') => {
-        console.log('Changing theme to:', newTheme);
+        console.log('Theme change requested:', newTheme);
         setTheme(newTheme);
     }
 
@@ -64,20 +64,20 @@ const Settings: React.FC = () => {
                      <div className="flex gap-2">
                         <button 
                             onClick={() => handleThemeChange('light')} 
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                                 theme === 'light' 
-                                    ? 'bg-blue-600 text-white' 
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                                    ? 'bg-blue-600 text-white shadow-lg' 
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                             }`}
                         >
                             Light
                         </button>
                         <button 
                             onClick={() => handleThemeChange('dark')} 
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                                 theme === 'dark' 
-                                    ? 'bg-blue-600 text-white' 
-                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                                    ? 'bg-blue-600 text-white shadow-lg' 
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                             }`}
                         >
                             Dark
