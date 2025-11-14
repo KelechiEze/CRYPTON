@@ -27,6 +27,11 @@ const Settings: React.FC = () => {
         }
     }
 
+    const handleThemeChange = (newTheme: 'light' | 'dark') => {
+        console.log('Changing theme to:', newTheme);
+        setTheme(newTheme);
+    }
+
     return (
         <div ref={settingsRef} className="space-y-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
@@ -57,8 +62,26 @@ const Settings: React.FC = () => {
             <SettingsCard icon={Palette} title="Appearance">
                  <SettingRow title="Theme" description="Customize the look and feel of the dashboard.">
                      <div className="flex gap-2">
-                        <button onClick={() => setTheme('light')} className={`px-4 py-2 rounded-lg text-sm font-semibold ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'}`}>Light</button>
-                        <button onClick={() => setTheme('dark')} className={`px-4 py-2 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'}`}>Dark</button>
+                        <button 
+                            onClick={() => handleThemeChange('light')} 
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                                theme === 'light' 
+                                    ? 'bg-blue-600 text-white' 
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                            }`}
+                        >
+                            Light
+                        </button>
+                        <button 
+                            onClick={() => handleThemeChange('dark')} 
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                                theme === 'dark' 
+                                    ? 'bg-blue-600 text-white' 
+                                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                            }`}
+                        >
+                            Dark
+                        </button>
                      </div>
                 </SettingRow>
             </SettingsCard>
@@ -125,6 +148,5 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ enabled, setEnabled }) => {
         </div>
     );
 };
-
 
 export default Settings;

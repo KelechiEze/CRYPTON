@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon, Brain, AlertTriangle, Play, Pause, Wallet } from 'lucide-react';
 import gsap from 'gsap';
 import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
@@ -18,6 +18,21 @@ interface Transaction {
     status: 'completed' | 'pending' | 'failed';
     timestamp: any;
     recipientAddress?: string;
+}
+
+interface AITradingCard {
+    id: string;
+    symbol: string;
+    name: string;
+    current_price: number;
+    price_change_percentage_24h: number;
+    image: string;
+    riskLevel: 'low' | 'medium' | 'high';
+    riskPercentage: number;
+    description: string;
+    aiGuidance: string;
+    riskWarning: string;
+    isActive: boolean;
 }
 
 // Enhanced withdrawal data with realistic user data and crypto transactions
@@ -173,10 +188,385 @@ const WithdrawalTicker: React.FC = () => {
     );
 };
 
+// AI Trading Card Component
+const AITradingCard: React.FC<{ 
+    coin: AITradingCard; 
+    onActivate: (coin: AITradingCard) => void;
+    onToggle: (coinId: string, isActive: boolean) => void;
+}> = ({ coin, onActivate, onToggle }) => {
+    const getRiskColor = (riskLevel: string) => {
+        switch (riskLevel) {
+            case 'low': return 'text-green-500';
+            case 'medium': return 'text-yellow-500';
+            case 'high': return 'text-red-500';
+            default: return 'text-gray-500';
+        }
+    };
+
+    const getRiskBgColor = (riskLevel: string) => {
+        switch (riskLevel) {
+            case 'low': return 'bg-green-500/10';
+            case 'medium': return 'bg-yellow-500/10';
+            case 'high': return 'bg-red-500/10';
+            default: return 'bg-gray-500/10';
+        }
+    };
+
+    return (
+        <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 transition-all duration-300 hover:border-blue-500 hover:-translate-y-1">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />
+                    <div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{coin.symbol.toUpperCase()}</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{coin.name}</p>
+                    </div>
+                </div>
+                <div className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBgColor(coin.riskLevel)} ${getRiskColor(coin.riskLevel)}`}>
+                    {coin.riskLevel.toUpperCase()} RISK
+                </div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+                <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Current Price</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                        ${coin.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                    </span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">24h Change</span>
+                    <span className={`font-semibold ${coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {coin.price_change_percentage_24h >= 0 ? '+' : ''}{coin.price_change_percentage_24h.toFixed(2)}%
+                    </span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Risk Level</span>
+                    <span className={`font-semibold ${getRiskColor(coin.riskLevel)}`}>
+                        {coin.riskPercentage}%
+                    </span>
+                </div>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
+                {coin.description}
+            </p>
+
+            <div className="flex gap-2">
+                <button
+                    onClick={() => onActivate(coin)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                    <Brain size={16} />
+                    Analyze
+                </button>
+                <button
+                    onClick={() => onToggle(coin.id, !coin.isActive)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+                        coin.isActive
+                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                >
+                    {coin.isActive ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// AI Trading Modal Component
+const AITradingModal: React.FC<{
+    coin: AITradingCard | null;
+    onClose: () => void;
+    onActivateTrading: (coinId: string) => void;
+}> = ({ coin, onClose, onActivateTrading }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const modalElement = modalRef.current;
+        const backdropElement = backdropRef.current;
+
+        gsap.set([backdropElement, modalElement], { autoAlpha: 1 });
+
+        const tl = gsap.timeline();
+        tl.to(backdropElement, { backgroundColor: 'rgba(0, 0, 0, 0.7)', duration: 0.3 })
+          .fromTo(modalElement, 
+              { scale: 0.8, y: 20 },
+              { scale: 1, y: 0, duration: 0.4, ease: 'back.out(1.7)' }, 
+              "-=0.2"
+          );
+    }, []);
+
+    const handleClose = () => {
+        const tl = gsap.timeline({ onComplete: onClose });
+        tl.to(modalRef.current, { scale: 0.8, autoAlpha: 0, duration: 0.3, ease: 'power2.in' })
+          .to(backdropRef.current, { autoAlpha: 0, duration: 0.3 }, "-=0.2");
+    };
+
+    const handleActivate = () => {
+        if (coin) {
+            onActivateTrading(coin.id);
+            handleClose();
+        }
+    };
+
+    if (!coin) return null;
+
+    const getRiskColor = (riskLevel: string) => {
+        switch (riskLevel) {
+            case 'low': return 'text-green-500';
+            case 'medium': return 'text-yellow-500';
+            case 'high': return 'text-red-500';
+            default: return 'text-gray-500';
+        }
+    };
+
+    return (
+        <div ref={backdropRef} onClick={handleClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}>
+            <div
+                ref={modalRef}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-2xl border border-gray-200 dark:border-gray-700 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <img src={coin.image} alt={coin.name} className="w-10 h-10 rounded-full" />
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                                {coin.name} ({coin.symbol.toUpperCase()}) AI Trading
+                            </h2>
+                            <p className="text-gray-600 dark:text-gray-300">Real-time market analysis</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClose}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                        <X className="text-gray-500 dark:text-gray-400" size={24} />
+                    </button>
+                </div>
+
+                {/* Current Market Data */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Current Price</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            ${coin.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">24h Change</p>
+                        <p className={`text-lg font-bold ${coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {coin.price_change_percentage_24h >= 0 ? '+' : ''}{coin.price_change_percentage_24h.toFixed(2)}%
+                        </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Risk Level</p>
+                        <p className={`text-lg font-bold ${getRiskColor(coin.riskLevel)}`}>
+                            {coin.riskLevel.toUpperCase()}
+                        </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Risk Score</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            {coin.riskPercentage}/100
+                        </p>
+                    </div>
+                </div>
+
+                {/* AI Analysis Sections */}
+                <div className="space-y-6">
+                    {/* Market Analysis */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            <Brain className="text-blue-500" size={20} />
+                            AI Market Analysis
+                        </h3>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <p className="text-blue-800 dark:text-blue-200">{coin.aiGuidance}</p>
+                        </div>
+                    </div>
+
+                    {/* Risk Warning */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            <AlertTriangle className="text-red-500" size={20} />
+                            Risk Warning
+                        </h3>
+                        <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                            <p className="text-red-800 dark:text-red-200">{coin.riskWarning}</p>
+                        </div>
+                    </div>
+
+                    {/* Trading Strategy */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                            Recommended Strategy
+                        </h3>
+                        <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                            <p className="text-gray-700 dark:text-gray-300">
+                                {coin.riskLevel === 'high' 
+                                    ? 'Consider small position sizes and set strict stop-loss orders. Monitor market volatility closely.'
+                                    : coin.riskLevel === 'medium'
+                                    ? 'Diversify your portfolio and consider dollar-cost averaging. Set take-profit and stop-loss levels.'
+                                    : 'Suitable for gradual accumulation. Consider long-term holding strategy with periodic rebalancing.'
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        onClick={handleClose}
+                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleActivate}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Brain size={20} />
+                        Activate AI Trading
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// AI Activation Success Modal Component
+const AIActivationSuccessModal: React.FC<{
+    coin: AITradingCard | null;
+    onClose: () => void;
+    onNavigateToWallet: () => void;
+}> = ({ coin, onClose, onNavigateToWallet }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const successIconRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const modalElement = modalRef.current;
+        const backdropElement = backdropRef.current;
+        const successIconElement = successIconRef.current;
+        const contentElement = contentRef.current;
+
+        gsap.set([backdropElement, modalElement], { autoAlpha: 1 });
+
+        const tl = gsap.timeline();
+        tl.to(backdropElement, { backgroundColor: 'rgba(0, 0, 0, 0.7)', duration: 0.3 })
+          .fromTo(modalElement, 
+              { scale: 0.8, y: 20, opacity: 0 },
+              { scale: 1, y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }, 
+              "-=0.2"
+          )
+          .fromTo(successIconElement,
+              { scale: 0, rotation: -180 },
+              { scale: 1, rotation: 0, duration: 0.6, ease: 'elastic.out(1, 0.8)' },
+              "-=0.2"
+          )
+          .fromTo(contentElement?.children,
+              { y: 20, opacity: 0 },
+              { y: 0, opacity: 1, duration: 0.4, stagger: 0.1, ease: 'power2.out' },
+              "-=0.3"
+          );
+    }, []);
+
+    const handleClose = () => {
+        const tl = gsap.timeline({ onComplete: onClose });
+        tl.to(modalRef.current, { scale: 0.8, autoAlpha: 0, duration: 0.3, ease: 'power2.in' })
+          .to(backdropRef.current, { autoAlpha: 0, duration: 0.3 }, "-=0.2");
+    };
+
+    const handleNavigateToWallet = () => {
+        const tl = gsap.timeline({ onComplete: onNavigateToWallet });
+        tl.to(modalRef.current, { scale: 0.8, autoAlpha: 0, duration: 0.3, ease: 'power2.in' })
+          .to(backdropRef.current, { autoAlpha: 0, duration: 0.3 }, "-=0.2");
+    };
+
+    if (!coin) return null;
+
+    return (
+        <div ref={backdropRef} onClick={handleClose} className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}>
+            <div
+                ref={modalRef}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 shadow-2xl relative text-center overflow-hidden"
+            >
+                {/* Animated Background Elements */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+                <Brain className="absolute -bottom-8 -right-8 text-purple-500/10 dark:text-purple-400/5" size={120} />
+                
+                {/* Success Icon */}
+                <div ref={successIconRef} className="relative z-10 mb-6">
+                    <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full mx-auto flex items-center justify-center shadow-lg shadow-green-500/25">
+                        <CheckCircle className="text-white" size={48} />
+                    </div>
+                    <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20"></div>
+                </div>
+
+                {/* Content */}
+                <div ref={contentRef} className="relative z-10 space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        AI Trading Activated!
+                    </h2>
+                    
+                    <div className="flex items-center justify-center gap-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                        <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />
+                        <div className="text-left">
+                            <p className="font-semibold text-gray-900 dark:text-white">{coin.symbol.toUpperCase()}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{coin.name}</p>
+                        </div>
+                    </div>
+
+                    <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
+                        Your AI trading bot is now connected to your <span className="font-semibold text-blue-600 dark:text-blue-400">{coin.symbol.toUpperCase()}</span> wallet!
+                    </p>
+
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-blue-800 dark:text-blue-200 text-sm">
+                            💡 <strong>Next Step:</strong> Deposit funds into your {coin.symbol.toUpperCase()} wallet to start generating profits with AI-powered trading.
+                        </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            onClick={handleClose}
+                            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
+                        >
+                            Maybe Later
+                        </button>
+                        <button
+                            onClick={handleNavigateToWallet}
+                            className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+                        >
+                            <Wallet size={20} />
+                            Go to Wallet
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
+                        Your AI will start trading automatically once funds are available
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+    const [selectedAICoin, setSelectedAICoin] = useState<AITradingCard | null>(null);
+    const [activationSuccessCoin, setActivationSuccessCoin] = useState<AITradingCard | null>(null);
     const { coins, balances } = useCryptoData();
     
     const [userData, setUserData] = useState({
@@ -190,6 +580,74 @@ const Overview: React.FC = () => {
     const [user, setUser] = useState<any>(null);
     const [hasClaimed, setHasClaimed] = useState(false);
     const [isClaiming, setIsClaiming] = useState(false);
+    const [aiTradingCoins, setAITradingCoins] = useState<AITradingCard[]>([]);
+
+    // Generate AI trading cards from available coins
+    useEffect(() => {
+        if (coins.length > 0) {
+            const topCoins = coins.slice(0, 8); // Get top 8 coins for AI trading
+            const aiCards = topCoins.map((coin, index) => {
+                // Determine risk level based on volatility and market cap
+                let riskLevel: 'low' | 'medium' | 'high' = 'medium';
+                let riskPercentage = 50;
+                
+                if (coin.market_cap_rank <= 10) {
+                    riskLevel = Math.abs(coin.price_change_percentage_24h) > 15 ? 'medium' : 'low';
+                    riskPercentage = Math.abs(coin.price_change_percentage_24h) > 15 ? 65 : 35;
+                } else if (coin.market_cap_rank <= 50) {
+                    riskLevel = Math.abs(coin.price_change_percentage_24h) > 25 ? 'high' : 'medium';
+                    riskPercentage = Math.abs(coin.price_change_percentage_24h) > 25 ? 80 : 55;
+                } else {
+                    riskLevel = 'high';
+                    riskPercentage = 85;
+                }
+
+                // Generate AI guidance based on market data
+                const aiGuidance = generateAIGuidance(coin, riskLevel);
+                const riskWarning = generateRiskWarning(coin, riskLevel);
+
+                return {
+                    id: coin.id,
+                    symbol: coin.symbol,
+                    name: coin.name,
+                    current_price: coin.current_price,
+                    price_change_percentage_24h: coin.price_change_percentage_24h || 0,
+                    image: coin.image,
+                    riskLevel,
+                    riskPercentage,
+                    description: `${coin.name} is ${riskLevel} risk cryptocurrency with ${coin.price_change_percentage_24h >= 0 ? 'positive' : 'negative'} momentum in the last 24 hours.`,
+                    aiGuidance,
+                    riskWarning,
+                    isActive: false
+                };
+            });
+            
+            setAITradingCoins(aiCards);
+        }
+    }, [coins]);
+
+    const generateAIGuidance = (coin: any, riskLevel: string): string => {
+        const trends = coin.price_change_percentage_24h >= 0 ? 'bullish' : 'bearish';
+        const volatility = Math.abs(coin.price_change_percentage_24h);
+        
+        if (riskLevel === 'low') {
+            return `Market shows stable ${trends} momentum with low volatility (${volatility.toFixed(1)}%). Suitable for conservative trading strategies with emphasis on long-term growth.`;
+        } else if (riskLevel === 'medium') {
+            return `Moderate volatility detected (${volatility.toFixed(1)}%). ${trends.charAt(0).toUpperCase() + trends.slice(1)} trend presents opportunities but requires careful position management.`;
+        } else {
+            return `High volatility environment (${volatility.toFixed(1)}%). Aggressive ${trends} momentum detected. Consider small position sizes and strict risk management protocols.`;
+        }
+    };
+
+    const generateRiskWarning = (coin: any, riskLevel: string): string => {
+        if (riskLevel === 'low') {
+            return 'While lower risk, cryptocurrency investments still carry inherent market risks. Past performance does not guarantee future results.';
+        } else if (riskLevel === 'medium') {
+            return 'Moderate risk level indicates potential for significant price swings. Only invest funds you can afford to lose and implement proper risk management.';
+        } else {
+            return 'High risk asset with potential for substantial losses. Extreme volatility expected. Use extreme caution and consider professional advice before trading.';
+        }
+    };
 
     // Calculate total balance from all wallets
     const calculateTotalBalance = () => {
@@ -364,6 +822,49 @@ const Overview: React.FC = () => {
         } finally {
             setIsClaiming(false);
         }
+    };
+
+    // AI Trading Handlers
+    const handleAIAnalyze = (coin: AITradingCard) => {
+        setSelectedAICoin(coin);
+    };
+
+    const handleToggleAITrading = (coinId: string, isActive: boolean) => {
+        setAITradingCoins(prev => 
+            prev.map(coin => 
+                coin.id === coinId 
+                    ? { ...coin, isActive }
+                    : coin
+            )
+        );
+        
+        if (isActive) {
+            // Find the activated coin and show success modal
+            const activatedCoin = aiTradingCoins.find(coin => coin.id === coinId);
+            if (activatedCoin) {
+                setActivationSuccessCoin(activatedCoin);
+            }
+        }
+    };
+
+    const handleActivateAITrading = (coinId: string) => {
+        setAITradingCoins(prev => 
+            prev.map(coin => 
+                coin.id === coinId 
+                    ? { ...coin, isActive: true }
+                    : coin
+            )
+        );
+        
+        // Find the activated coin and show success modal
+        const activatedCoin = aiTradingCoins.find(coin => coin.id === coinId);
+        if (activatedCoin) {
+            setActivationSuccessCoin(activatedCoin);
+        }
+    };
+
+    const handleNavigateToWallet = () => {
+        navigate('/dashboard/wallets');
     };
 
     // Get recent transactions (last 5)
@@ -544,6 +1045,33 @@ const Overview: React.FC = () => {
                 />
             </div>
 
+            {/* AI Trading Section */}
+            <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-500/10 rounded-xl">
+                            <Brain className="text-purple-500" size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI Trading</h2>
+                            <p className="text-gray-600 dark:text-gray-300">Automated trading with intelligent risk management</p>
+                        </div>
+                    </div>
+                    {/* Removed View All Button */}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {aiTradingCoins.map((coin) => (
+                        <AITradingCard
+                            key={coin.id}
+                            coin={coin}
+                            onActivate={handleAIAnalyze}
+                            onToggle={handleToggleAITrading}
+                        />
+                    ))}
+                </div>
+            </div>
+
             {/* Enhanced Ad Banner */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-blue-500/20 relative overflow-hidden">
                 <div className="relative z-10">
@@ -682,6 +1210,24 @@ const Overview: React.FC = () => {
                     }
                 </button>
             </div>
+
+            {/* AI Trading Modal */}
+            {selectedAICoin && (
+                <AITradingModal
+                    coin={selectedAICoin}
+                    onClose={() => setSelectedAICoin(null)}
+                    onActivateTrading={handleActivateAITrading}
+                />
+            )}
+
+            {/* AI Activation Success Modal */}
+            {activationSuccessCoin && (
+                <AIActivationSuccessModal
+                    coin={activationSuccessCoin}
+                    onClose={() => setActivationSuccessCoin(null)}
+                    onNavigateToWallet={handleNavigateToWallet}
+                />
+            )}
             {isClaimModalOpen && <ClaimSuccessModal onClose={() => setIsClaimModalOpen(false)} />}
         </div>
     );

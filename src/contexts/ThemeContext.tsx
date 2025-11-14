@@ -13,23 +13,39 @@ export const ThemeProvider: React.FC<{children: React.ReactNode}> = ({ children 
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem('theme');
-      if (storedTheme) {
+      if (storedTheme === 'light' || storedTheme === 'dark') {
         return storedTheme as Theme;
       }
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    return 'dark'; // Default for server-side rendering
+    return 'light';
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
+    
+    // Remove both classes first
     root.classList.remove('light', 'dark');
+    
+    // Add the current theme class
     root.classList.add(theme);
+    
+    // Store in localStorage
     localStorage.setItem('theme', theme);
+    
+    console.log('Theme changed to:', theme); // Debug log
   }, [theme]);
 
+  const value = {
+    theme,
+    setTheme: (newTheme: Theme) => {
+      console.log('Setting theme to:', newTheme); // Debug log
+      setTheme(newTheme);
+    }
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
