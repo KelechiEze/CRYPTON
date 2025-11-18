@@ -39,7 +39,7 @@ const Preloader: React.FC = () => {
             <div className="absolute w-full h-full bg-blue-900/40 border border-blue-400 transform rotate-x-270 translate-y-neg-20 md:translate-y-neg-26 translate-z-20 md:translate-z-26"></div>
         </div>
         <h1 className="text-3xl font-bold text-blue-300 mt-12 tracking-widest animate-pulse">PAYCOIN</h1>
-        <p className="text-blue-400 mt-2">SECURE & FUTURISTIC</p>
+        <p className="text-blue-400 mt-2">LET'S START TRADING & MINING TODAY</p>
          <style>{`
             .perspective-1000 { perspective: 1000px; }
             .transform-style-3d { transform-style: preserve-3d; }

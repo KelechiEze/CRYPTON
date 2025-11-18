@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Transaction {
     id: string;
@@ -121,6 +122,8 @@ const TransactionItem: React.FC<{ item: any; index: number }> = ({ item, index }
 );
 
 const WithdrawalTicker: React.FC = () => {
+    const { t } = useLanguage();
+
     return (
         <div className="group relative w-full overflow-hidden bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-lg">
             {/* Header */}
@@ -129,8 +132,8 @@ const WithdrawalTicker: React.FC = () => {
                     <TrendingUpIcon className="text-blue-500" size={20} />
                 </div>
                 <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">Live Transactions</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Real-time user activity</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white text-sm">{t.liveTransactions || 'Live Transactions'}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.realTimeActivity || 'Real-time user activity'}</p>
                 </div>
             </div>
 
@@ -160,10 +163,10 @@ const WithdrawalTicker: React.FC = () => {
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Live updates</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{t.liveUpdates || 'Live updates'}</span>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {withdrawalData.length} transactions today
+                    {withdrawalData.length} {t.transactionsToday || 'transactions today'}
                 </div>
             </div>
 
@@ -194,6 +197,8 @@ const AITradingCard: React.FC<{
     onActivate: (coin: AITradingCard) => void;
     onToggle: (coinId: string, isActive: boolean) => void;
 }> = ({ coin, onActivate, onToggle }) => {
+    const { t } = useLanguage();
+
     const getRiskColor = (riskLevel: string) => {
         switch (riskLevel) {
             case 'low': return 'text-green-500';
@@ -223,25 +228,25 @@ const AITradingCard: React.FC<{
                     </div>
                 </div>
                 <div className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskBgColor(coin.riskLevel)} ${getRiskColor(coin.riskLevel)}`}>
-                    {coin.riskLevel.toUpperCase()} RISK
+                    {coin.riskLevel.toUpperCase()} {t.risk || 'RISK'}
                 </div>
             </div>
 
             <div className="space-y-2 mb-4">
                 <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Current Price</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.currentPrice || 'Current Price'}</span>
                     <span className="font-semibold text-gray-900 dark:text-white">
                         ${coin.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                     </span>
                 </div>
                 <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">24h Change</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.h24Change || '24h Change'}</span>
                     <span className={`font-semibold ${coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                         {coin.price_change_percentage_24h >= 0 ? '+' : ''}{coin.price_change_percentage_24h.toFixed(2)}%
                     </span>
                 </div>
                 <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Risk Level</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.riskLevel || 'Risk Level'}</span>
                     <span className={`font-semibold ${getRiskColor(coin.riskLevel)}`}>
                         {coin.riskPercentage}%
                     </span>
@@ -258,7 +263,7 @@ const AITradingCard: React.FC<{
                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
                 >
                     <Brain size={16} />
-                    Analyze
+                    {t.analyze || 'Analyze'}
                 </button>
                 <button
                     onClick={() => onToggle(coin.id, !coin.isActive)}
@@ -281,6 +286,7 @@ const AITradingModal: React.FC<{
     onClose: () => void;
     onActivateTrading: (coinId: string) => void;
 }> = ({ coin, onClose, onActivateTrading }) => {
+    const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -336,9 +342,9 @@ const AITradingModal: React.FC<{
                         <img src={coin.image} alt={coin.name} className="w-10 h-10 rounded-full" />
                         <div>
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {coin.name} ({coin.symbol.toUpperCase()}) AI Trading
+                                {coin.name} ({coin.symbol.toUpperCase()}) {t.aiTrading || 'AI Trading'}
                             </h2>
-                            <p className="text-gray-600 dark:text-gray-300">Real-time market analysis</p>
+                            <p className="text-gray-600 dark:text-gray-300">{t.realTimeMarketAnalysis || 'Real-time market analysis'}</p>
                         </div>
                     </div>
                     <button
@@ -352,25 +358,25 @@ const AITradingModal: React.FC<{
                 {/* Current Market Data */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Current Price</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t.currentPrice || 'Current Price'}</p>
                         <p className="text-lg font-bold text-gray-900 dark:text-white">
                             ${coin.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                         </p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">24h Change</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t.h24Change || '24h Change'}</p>
                         <p className={`text-lg font-bold ${coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             {coin.price_change_percentage_24h >= 0 ? '+' : ''}{coin.price_change_percentage_24h.toFixed(2)}%
                         </p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Risk Level</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t.riskLevel || 'Risk Level'}</p>
                         <p className={`text-lg font-bold ${getRiskColor(coin.riskLevel)}`}>
                             {coin.riskLevel.toUpperCase()}
                         </p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Risk Score</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t.riskScore || 'Risk Score'}</p>
                         <p className="text-lg font-bold text-gray-900 dark:text-white">
                             {coin.riskPercentage}/100
                         </p>
@@ -383,7 +389,7 @@ const AITradingModal: React.FC<{
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                             <Brain className="text-blue-500" size={20} />
-                            AI Market Analysis
+                            {t.aiMarketAnalysis || 'AI Market Analysis'}
                         </h3>
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                             <p className="text-blue-800 dark:text-blue-200">{coin.aiGuidance}</p>
@@ -394,7 +400,7 @@ const AITradingModal: React.FC<{
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                             <AlertTriangle className="text-red-500" size={20} />
-                            Risk Warning
+                            {t.riskWarning || 'Risk Warning'}
                         </h3>
                         <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
                             <p className="text-red-800 dark:text-red-200">{coin.riskWarning}</p>
@@ -404,15 +410,15 @@ const AITradingModal: React.FC<{
                     {/* Trading Strategy */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                            Recommended Strategy
+                            {t.recommendedStrategy || 'Recommended Strategy'}
                         </h3>
                         <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                             <p className="text-gray-700 dark:text-gray-300">
                                 {coin.riskLevel === 'high' 
-                                    ? 'Consider small position sizes and set strict stop-loss orders. Monitor market volatility closely.'
+                                    ? t.highRiskStrategy || 'Consider small position sizes and set strict stop-loss orders. Monitor market volatility closely.'
                                     : coin.riskLevel === 'medium'
-                                    ? 'Diversify your portfolio and consider dollar-cost averaging. Set take-profit and stop-loss levels.'
-                                    : 'Suitable for gradual accumulation. Consider long-term holding strategy with periodic rebalancing.'
+                                    ? t.mediumRiskStrategy || 'Diversify your portfolio and consider dollar-cost averaging. Set take-profit and stop-loss levels.'
+                                    : t.lowRiskStrategy || 'Suitable for gradual accumulation. Consider long-term holding strategy with periodic rebalancing.'
                                 }
                             </p>
                         </div>
@@ -425,14 +431,14 @@ const AITradingModal: React.FC<{
                         onClick={handleClose}
                         className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors"
                     >
-                        Cancel
+                        {t.cancel || 'Cancel'}
                     </button>
                     <button
                         onClick={handleActivate}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                         <Brain size={20} />
-                        Activate AI Trading
+                        {t.activateAITrading || 'Activate AI Trading'}
                     </button>
                 </div>
             </div>
@@ -446,6 +452,7 @@ const AIActivationSuccessModal: React.FC<{
     onClose: () => void;
     onNavigateToWallet: () => void;
 }> = ({ coin, onClose, onNavigateToWallet }) => {
+    const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
     const successIconRef = useRef<HTMLDivElement>(null);
@@ -514,7 +521,7 @@ const AIActivationSuccessModal: React.FC<{
                 {/* Content */}
                 <div ref={contentRef} className="relative z-10 space-y-4">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        AI Trading Activated!
+                        {t.aiTradingActivated || 'AI Trading Activated!'}
                     </h2>
                     
                     <div className="flex items-center justify-center gap-3 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
@@ -526,12 +533,12 @@ const AIActivationSuccessModal: React.FC<{
                     </div>
 
                     <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
-                        Your AI trading bot is now connected to your <span className="font-semibold text-blue-600 dark:text-blue-400">{coin.symbol.toUpperCase()}</span> wallet!
+                        {t.aiBotConnected || 'Your AI trading bot is now connected to your'} <span className="font-semibold text-blue-600 dark:text-blue-400">{coin.symbol.toUpperCase()}</span> {t.wallet || 'wallet'}!
                     </p>
 
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                         <p className="text-blue-800 dark:text-blue-200 text-sm">
-                            💡 <strong>Next Step:</strong> Deposit funds into your {coin.symbol.toUpperCase()} wallet to start generating profits with AI-powered trading.
+                            💡 <strong>{t.nextStep || 'Next Step'}:</strong> {t.depositFundsToStart || 'Deposit funds into your'} {coin.symbol.toUpperCase()} {t.walletToGenerateProfits || 'wallet to start generating profits with AI-powered trading.'}
                         </p>
                     </div>
 
@@ -541,19 +548,19 @@ const AIActivationSuccessModal: React.FC<{
                             onClick={handleClose}
                             className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
                         >
-                            Maybe Later
+                            {t.maybeLater || 'Maybe Later'}
                         </button>
                         <button
                             onClick={handleNavigateToWallet}
                             className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
                         >
                             <Wallet size={20} />
-                            Go to Wallet
+                            {t.goToWallet || 'Go to Wallet'}
                         </button>
                     </div>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
-                        Your AI will start trading automatically once funds are available
+                        {t.aiStartTrading || 'Your AI will start trading automatically once funds are available'}
                     </p>
                 </div>
             </div>
@@ -564,6 +571,7 @@ const AIActivationSuccessModal: React.FC<{
 const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
     const [selectedAICoin, setSelectedAICoin] = useState<AITradingCard | null>(null);
     const [activationSuccessCoin, setActivationSuccessCoin] = useState<AITradingCard | null>(null);
@@ -787,7 +795,7 @@ const Overview: React.FC = () => {
         if (isClaiming) return;
         
         if (hasClaimed) {
-            alert('Bonus already claimed! You can only claim the welcome bonus once.');
+            alert(t.bonusAlreadyClaimed || 'Bonus already claimed! You can only claim the welcome bonus once.');
             return;
         }
 
@@ -814,11 +822,11 @@ const Overview: React.FC = () => {
                     bitcoinBalance: prev.bitcoinBalance + btcAmount
                 }));
             } else {
-                alert(`Failed to claim bonus: ${result.error}`);
+                alert(`${t.failedToClaimBonus || 'Failed to claim bonus'}: ${result.error}`);
             }
         } catch (error) {
             console.error('Error claiming bonus:', error);
-            alert('Failed to claim bonus. Please try again.');
+            alert(t.failedToClaimBonusTryAgain || 'Failed to claim bonus. Please try again.');
         } finally {
             setIsClaiming(false);
         }
@@ -910,11 +918,11 @@ const Overview: React.FC = () => {
     };
 
     const formatDate = (timestamp: any): string => {
-        if (!timestamp) return 'Unknown date';
+        if (!timestamp) return t.unknownDate || 'Unknown date';
         
         try {
             const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-            if (isNaN(date.getTime())) return 'Invalid date';
+            if (isNaN(date.getTime())) return t.invalidDate || 'Invalid date';
             
             const now = new Date();
             const diffMs = now.getTime() - date.getTime();
@@ -922,17 +930,17 @@ const Overview: React.FC = () => {
             const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
             const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
             
-            if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
+            if (diffMins < 1) return t.justNow || 'Just now';
+            if (diffMins < 60) return `${diffMins}${t.minutesAgo || 'm ago'}`;
+            if (diffHours < 24) return `${diffHours}${t.hoursAgo || 'h ago'}`;
+            if (diffDays < 7) return `${diffDays}${t.daysAgo || 'd ago'}`;
             
             return date.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric'
             });
         } catch (error) {
-            return 'Invalid date';
+            return t.invalidDate || 'Invalid date';
         }
     };
 
@@ -956,17 +964,17 @@ const Overview: React.FC = () => {
     const getTransactionTitle = (transaction: Transaction): string => {
         switch (transaction.type) {
             case 'sent':
-                return 'Sent';
+                return t.sent || 'Sent';
             case 'received':
-                return 'Received';
+                return t.received || 'Received';
             case 'mined':
-                return `Mined ${transaction.coinName || 'Crypto'}`;
+                return `${t.mined || 'Mined'} ${transaction.coinName || t.crypto || 'Crypto'}`;
             case 'bonus':
-                return 'Welcome Bonus';
+                return t.welcomeBonus || 'Welcome Bonus';
             case 'swapped':
-                return 'Swapped';
+                return t.swapped || 'Swapped';
             default:
-                return 'Transaction';
+                return t.transaction || 'Transaction';
         }
     };
 
@@ -1008,7 +1016,7 @@ const Overview: React.FC = () => {
 
     return (
         <div ref={overviewRef} className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome To Paycoin</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.welcomeToPaycoin || 'Welcome To Paycoin'}</h1>
 
             {/* Enhanced Withdrawal Ticker - Added Here */}
             <WithdrawalTicker />
@@ -1017,30 +1025,30 @@ const Overview: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard 
                     icon={DollarSign} 
-                    title="Total Balance" 
+                    title={t.totalBalance || 'Total Balance'} 
                     value={`$${totalBalance.toFixed(2)}`}
                     change={calculatePercentageChange(totalBalance, portfolioChange)}
                     isPositive={portfolioChange >= 0}
                 />
                 <StatCard 
                     icon={TrendingUp} 
-                    title="24h Portfolio Change" 
+                    title={t.portfolioChange24h || '24h Portfolio Change'} 
                     value={`$${portfolioChange.toFixed(2)}`}
                     change={calculatePercentageChange(totalBalance, portfolioChange)}
                     isPositive={portfolioChange >= 0}
                 />
                 <StatCard 
                     icon={Bitcoin} 
-                    title="Bitcoin Balance" 
+                    title={t.bitcoinBalance || 'Bitcoin Balance'} 
                     value={`${bitcoinBalance.toFixed(6)} BTC`}
                     change={calculatePercentageChange(bitcoinBalance, bitcoinChange)}
                     isPositive={bitcoinChange >= 0}
                 />
                 <StatCard 
                     icon={Zap} 
-                    title="24h Activities" 
+                    title={t.activities24h || '24h Activities'} 
                     value={`${activityCount}`}
-                    change={`${totalTransactions} total`}
+                    change={`${totalTransactions} ${t.total || 'total'}`}
                     isPositive={activityCount > 0}
                 />
             </div>
@@ -1053,8 +1061,8 @@ const Overview: React.FC = () => {
                             <Brain className="text-purple-500" size={24} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI Trading</h2>
-                            <p className="text-gray-600 dark:text-gray-300">Automated trading with intelligent risk management</p>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.aiTrading || 'AI Trading'}</h2>
+                            <p className="text-gray-600 dark:text-gray-300">{t.automatedTradingDescription || 'Automated trading with intelligent risk management'}</p>
                         </div>
                     </div>
                     {/* Removed View All Button */}
@@ -1075,11 +1083,11 @@ const Overview: React.FC = () => {
             {/* Enhanced Ad Banner */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-blue-500/20 relative overflow-hidden">
                 <div className="relative z-10">
-                    <h2 className="text-2xl font-bold text-white">Start Mining Now</h2>
-                    <p className="text-blue-100 mt-1">Put your hardware to work and earn crypto rewards.</p>
+                    <h2 className="text-2xl font-bold text-white">{t.startMiningNow || 'Start Mining Now'}</h2>
+                    <p className="text-blue-100 mt-1">{t.putHardwareToWork || 'Put your hardware to work and earn crypto rewards.'}</p>
                 </div>
                 <button onClick={() => navigate('/dashboard/mine')} className="bg-white text-blue-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105 z-10">
-                    Start Mining
+                    {t.startMining || 'Start Mining'}
                 </button>
                 <BarChart className="absolute right-4 top-1/2 -translate-y-1/2 text-white/10 w-28 h-28 transform rotate-[-15deg]" />
             </div>
@@ -1088,25 +1096,25 @@ const Overview: React.FC = () => {
                 {/* Recent Activity */}
                 <div className="lg:col-span-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Activity</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t.recentActivity || 'Recent Activity'}</h2>
                         <button 
                             onClick={() => navigate('/dashboard/transactions')}
                             className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                         >
-                            View All
+                            {t.viewAll || 'View All'}
                         </button>
                     </div>
                     <div className="space-y-3">
                         {recentTransactions.length === 0 ? (
                             <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                                 <RefreshCw className="mx-auto mb-3 text-gray-400" size={32} />
-                                <p>No recent activity</p>
-                                <p className="text-sm mt-2">Your transactions will appear here</p>
+                                <p>{t.noRecentActivity || 'No recent activity'}</p>
+                                <p className="text-sm mt-2">{t.transactionsWillAppear || 'Your transactions will appear here'}</p>
                                 <button 
                                     onClick={() => navigate('/dashboard/mine')}
                                     className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                                 >
-                                    Start Mining
+                                    {t.startMining || 'Start Mining'}
                                 </button>
                             </div>
                         ) : (
@@ -1134,8 +1142,8 @@ const Overview: React.FC = () => {
                                             {getAmountPrefix(transaction.type)}{formatAmount(transaction)}
                                         </p>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            {transaction.status === 'completed' ? 'Completed' : 
-                                             transaction.status === 'pending' ? 'Pending' : 'Failed'}
+                                            {transaction.status === 'completed' ? t.completed || 'Completed' : 
+                                             transaction.status === 'pending' ? t.pending || 'Pending' : t.failed || 'Failed'}
                                         </p>
                                     </div>
                                 </div>
@@ -1148,25 +1156,25 @@ const Overview: React.FC = () => {
                 <div className="space-y-6">
                     <SmallAdCard 
                         icon={ShieldCheck}
-                        title="Upgrade Your Security"
-                        description="Enable Two-Factor Authentication for enhanced protection."
-                        ctaText="Secure Account"
+                        title={t.upgradeSecurity || 'Upgrade Your Security'}
+                        description={t.enable2FADescription || 'Enable Two-Factor Authentication for enhanced protection.'}
+                        ctaText={t.secureAccount || 'Secure Account'}
                         className="from-teal-500 to-cyan-600"
                         onClick={() => navigate('/dashboard/settings')}
                     />
                      <SmallAdCard 
                         icon={Zap}
-                        title="Mine Ethereum"
-                        description="Join the network and start mining the second-largest cryptocurrency."
-                        ctaText="Mine Now"
+                        title={t.mineEthereum || 'Mine Ethereum'}
+                        description={t.mineEthereumDescription || 'Join the network and start mining the second-largest cryptocurrency.'}
+                        ctaText={t.mineNow || 'Mine Now'}
                         className="from-indigo-500 to-purple-600"
                         onClick={() => navigate('/dashboard/mine')}
                     />
                     <SmallAdCard 
                         icon={BarChart}
-                        title="View All Transactions"
-                        description="See your complete transaction history and track all your activities."
-                        ctaText="View History"
+                        title={t.viewAllTransactions || 'View All Transactions'}
+                        description={t.viewTransactionHistory || 'See your complete transaction history and track all your activities.'}
+                        ctaText={t.viewHistory || 'View History'}
                         className="from-blue-500 to-purple-600"
                         onClick={() => navigate('/dashboard/transactions')}
                     />
@@ -1182,12 +1190,12 @@ const Overview: React.FC = () => {
                 <div>
                     <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                         <Gift size={28} /> 
-                        {hasClaimed ? 'Bonus Already Claimed!' : 'Click the button to claim your $50'}
+                        {hasClaimed ? t.bonusAlreadyClaimed || 'Bonus Already Claimed!' : t.claim50Bonus || 'Click the button to claim your $50'}
                     </h2>
                     <p className={`mt-1 ${hasClaimed ? 'text-gray-200' : 'text-green-100'}`}>
                         {hasClaimed 
-                            ? 'You have already received your welcome bonus. Check your wallet balance!' 
-                            : 'Get $50 in BTC by Clicking on the Button NOW!'
+                            ? t.bonusAlreadyClaimedDescription || 'You have already received your welcome bonus. Check your wallet balance!' 
+                            : t.claim50Description || 'Get $50 in BTC by Clicking on the Button NOW!'
                         }
                     </p>
                 </div>
@@ -1203,10 +1211,10 @@ const Overview: React.FC = () => {
                     }`}
                 >
                     {isClaiming 
-                        ? 'Claiming...' 
+                        ? t.claiming || 'Claiming...' 
                         : hasClaimed 
-                        ? 'Bonus Claimed ✓' 
-                        : 'Claim $50 worth of Bitcoin'
+                        ? t.bonusClaimed || 'Bonus Claimed ✓' 
+                        : t.claim50Bitcoin || 'Claim $50 worth of Bitcoin'
                     }
                 </button>
             </div>
@@ -1279,6 +1287,7 @@ const SmallAdCard: React.FC<SmallAdCardProps> = ({ icon: Icon, title, descriptio
 );
 
 const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
 
@@ -1331,14 +1340,14 @@ const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div className="w-20 h-20 bg-green-500/20 dark:bg-green-400/20 rounded-full mx-auto flex items-center justify-center mb-4">
                         <CheckCircle className="text-green-500 dark:text-green-400" size={48} />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Success!</h2>
-                    <p className="text-gray-600 dark:text-gray-300 mt-2">You have successfully claimed your $50!</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">$50 has been added to your balance and equivalent BTC to your Bitcoin wallet.</p>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.success || 'Success!'}</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mt-2">{t.youHaveClaimed50 || 'You have successfully claimed your $50!'}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t.bonusAddedDescription || '$50 has been added to your balance and equivalent BTC to your Bitcoin wallet.'}</p>
                     <button
                         onClick={handleClose}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg mt-6 transition-transform transform hover:scale-105"
                     >
-                        Great!
+                        {t.great || 'Great!'}
                     </button>
                 </div>
             </div>

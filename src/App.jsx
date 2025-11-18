@@ -13,6 +13,7 @@ import Settings from './pages/dashboard/Settings';
 import Profile from './pages/dashboard/Profiles';
 import Mine from './pages/dashboard/Mine';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { LanguageProvider } from './contexts/LanguageContext'; // Add this import
 import TawkToChat from './components/TawkToChat';
 import CustomerCareButton from './components/CustomerCareButton';
 
@@ -25,7 +26,6 @@ const App = () => {
   // Check if user is authenticated on initial load
   useEffect(() => {
     const checkAuthStatus = () => {
-      // Check localStorage for authentication status
       const authStatus = localStorage.getItem('isAuthenticated');
       const savedAuth = authStatus === 'true';
       
@@ -34,7 +34,6 @@ const App = () => {
       const timer = setTimeout(() => {
         setLoading(false);
         
-        // After loading, handle routing based on auth status
         if (!savedAuth) {
           if (!['/login', '/signup', '/forgot-password'].includes(location.pathname)) {
             navigate('/signup');
@@ -43,17 +42,15 @@ const App = () => {
           if (['/login', '/signup', '/forgot-password', '/'].includes(location.pathname)) {
             navigate('/dashboard/overview');
           }
-          // If user is authenticated and on a dashboard route, stay there
         }
-      }, 2000); // Reduced loading time for better UX
+      }, 2000);
 
       return () => clearTimeout(timer);
     };
 
     checkAuthStatus();
-  }, []); // Empty dependency array - only run on mount
+  }, []);
 
-  // Effect to handle auth changes after initial load
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated && !['/login', '/signup', '/forgot-password'].includes(location.pathname)) {
@@ -66,13 +63,13 @@ const App = () => {
 
   const handleLogin = () => {
     setIsAuthenticated(true);
-    localStorage.setItem('isAuthenticated', 'true'); // Persist auth state
+    localStorage.setItem('isAuthenticated', 'true');
     navigate('/dashboard/overview');
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated'); // Clear auth state
+    localStorage.removeItem('isAuthenticated');
     navigate('/login');
   };
 
@@ -82,38 +79,38 @@ const App = () => {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans">
-        <Routes>
-          {isAuthenticated ? (
-            <Route path="/dashboard" element={<DashboardLayout handleLogout={handleLogout} />}>
-              <Route path="overview" element={<Overview />} />
-              <Route path="wallets" element={<Wallets />} />
-              <Route path="transactions" element={<Transactions />} />
-              <Route path="mine" element={<Mine />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="profile" element={<Profile />} />
-              <Route index element={<Overview />} /> {/* Default dashboard route */}
-            </Route>
-          ) : (
-            <Route path="/" element={<AuthLayout />}>
-              <Route path="signup" element={<Signup onSignup={handleLogin} />} />
-              <Route path="login" element={<Login onLogin={handleLogin} />} />
-              <Route path="forgot-password" element={<ForgotPassword />} />
-              <Route index element={<Signup onSignup={handleLogin} />} />
-            </Route>
-          )}
-          {/* Catch-all route for authenticated users */}
-          <Route path="*" element={isAuthenticated ? <Overview /> : <Signup onSignup={handleLogin} />} />
-        </Routes>
+      <LanguageProvider> {/* Wrap with LanguageProvider */}
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white font-sans">
+          <Routes>
+            {isAuthenticated ? (
+              <Route path="/dashboard" element={<DashboardLayout handleLogout={handleLogout} />}>
+                <Route path="overview" element={<Overview />} />
+                <Route path="wallets" element={<Wallets />} />
+                <Route path="transactions" element={<Transactions />} />
+                <Route path="mine" element={<Mine />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="profile" element={<Profile />} />
+                <Route index element={<Overview />} />
+              </Route>
+            ) : (
+              <Route path="/" element={<AuthLayout />}>
+                <Route path="signup" element={<Signup onSignup={handleLogin} />} />
+                <Route path="login" element={<Login onLogin={handleLogin} />} />
+                <Route path="forgot-password" element={<ForgotPassword />} />
+                <Route index element={<Signup onSignup={handleLogin} />} />
+              </Route>
+            )}
+            <Route path="*" element={isAuthenticated ? <Overview /> : <Signup onSignup={handleLogin} />} />
+          </Routes>
 
-        {/* Tawk.to Customer Care - Only show when user is authenticated */}
-        {isAuthenticated && (
-          <>
-            <TawkToChat />
-            <CustomerCareButton />
-          </>
-        )}
-      </div>
+          {isAuthenticated && (
+            <>
+              <TawkToChat />
+              <CustomerCareButton />
+            </>
+          )}
+        </div>
+      </LanguageProvider>
     </ThemeProvider>
   );
 };

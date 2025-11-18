@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Coin } from '../../types';
 import { Pickaxe, Zap } from 'lucide-react';
 import gsap from 'gsap';
@@ -8,6 +9,7 @@ import { addTransaction } from '../../pages/auth/authService';
 
 const Mine: React.FC = () => {
     const { coins, loading, addMinedValue } = useCryptoData();
+    const { t } = useLanguage();
     const [miningStatus, setMiningStatus] = useState<{ [key: string]: boolean }>({});
     const [minedAmounts, setMinedAmounts] = useState<{ [key: string]: number }>({});
     const [hashRates, setHashRates] = useState<{ [key: string]: number }>({});
@@ -52,7 +54,7 @@ const Mine: React.FC = () => {
                 amount: sessionData.totalAmount,
                 amountUsd: totalMinedValueForCoin,
                 currency: coin.symbol.toUpperCase(),
-                description: `Mined ${coin.name}`,
+                description: `${t.mined} ${coin.name}`,
                 status: 'completed',
                 timestamp: new Date()
             });
@@ -147,7 +149,7 @@ const Mine: React.FC = () => {
         }, 30000); // Auto-save every 30 seconds
 
         return () => clearInterval(autoSaveInterval);
-    }, [miningSessions, coins, user]);
+    }, [miningSessions, coins, user, t]);
 
     // Calculate total mined value across all coins
     const calculateTotalMinedValue = () => {
@@ -166,34 +168,33 @@ const Mine: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="text-center text-gray-500 dark:text-gray-400">Loading mining rigs...</div>;
+        return <div className="text-center text-gray-500 dark:text-gray-400">{t.loadingMiningRigs || 'Loading mining rigs...'}</div>;
     }
 
     return (
         <div ref={pageRef} className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Crypto Mining</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.cryptoMining || 'Crypto Mining'}</h1>
             <p className="text-gray-500 dark:text-gray-400">
-                Start mining assets to increase your wallet balance. Mining is simulated and only active while you are on this page.
-                For Faster Mining, Reach out to our customer care for guidance
+                {t.miningDescription || 'Start mining assets to increase your wallet balance. Mining is simulated and only active while you are on this page. For Faster Mining, Reach out to our customer care for guidance'}
             </p>
 
             {/* Total Mining Stats */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-xl text-white">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
-                        <p className="text-blue-100 text-sm">Active Miners</p>
+                        <p className="text-blue-100 text-sm">{t.activeMiners || 'Active Miners'}</p>
                         <p className="text-2xl font-bold">
                             {getActiveMinersCount()}
                         </p>
                     </div>
                     <div className="text-center">
-                        <p className="text-blue-100 text-sm">Total Mined Value</p>
+                        <p className="text-blue-100 text-sm">{t.totalMinedValue || 'Total Mined Value'}</p>
                         <p className="text-2xl font-bold">
                             ${calculateTotalMinedValue().toFixed(4)}
                         </p>
                     </div>
                     <div className="text-center">
-                        <p className="text-blue-100 text-sm">Total Coins Mined</p>
+                        <p className="text-blue-100 text-sm">{t.totalCoinsMined || 'Total Coins Mined'}</p>
                         <p className="text-2xl font-bold">
                             {getTotalCoinsMinedCount()}
                         </p>
@@ -230,7 +231,7 @@ const Mine: React.FC = () => {
                             
                             <div className="space-y-3 my-5">
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Hash Rate</span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.hashRate || 'Hash Rate'}</span>
                                     <span className={`font-mono text-lg font-semibold ${
                                         isMining 
                                             ? 'text-green-500 animate-pulse' 
@@ -240,19 +241,19 @@ const Mine: React.FC = () => {
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Mined ({coin.symbol.toUpperCase()})</span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.mined || 'Mined'} ({coin.symbol.toUpperCase()})</span>
                                     <span className="font-mono text-lg font-semibold text-gray-600 dark:text-gray-300">
                                         {minedAmount.toFixed(8)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Mined Value</span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.minedValue || 'Mined Value'}</span>
                                     <span className="font-mono text-lg font-semibold text-green-500/90 dark:text-green-400/90">
                                         ${minedValueUSD.toFixed(4)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-gray-500 dark:text-gray-400">Price</span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">{t.price || 'Price'}</span>
                                     <span className="font-mono text-sm text-gray-600 dark:text-gray-300">
                                         ${coin.current_price.toLocaleString()}
                                     </span>
@@ -272,16 +273,16 @@ const Mine: React.FC = () => {
                             >
                                 <Zap size={16} />
                                 {!user 
-                                    ? 'Login to Mine' 
+                                    ? t.loginToMine || 'Login to Mine'
                                     : isMining 
-                                    ? 'Stop Mining' 
-                                    : 'Start Mining'
+                                    ? t.stopMining || 'Stop Mining'
+                                    : t.startMining || 'Start Mining'
                                 }
                             </button>
 
                             {!user && (
                                 <p className="text-xs text-red-500 dark:text-red-400 text-center mt-2">
-                                    Please log in to start mining
+                                    {t.pleaseLoginToMine || 'Please log in to start mining'}
                                 </p>
                             )}
                         </div>
@@ -291,14 +292,14 @@ const Mine: React.FC = () => {
 
             {/* Mining Instructions */}
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
-                <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-400 mb-2">How Mining Works</h3>
+                <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-400 mb-2">{t.howMiningWorks || 'How Mining Works'}</h3>
                 <ul className="text-yellow-600 dark:text-yellow-300 text-sm space-y-1">
-                    <li>• For faster Mining reach out to our customer care or Agents</li>
-                    <li>• Mining is simulated and only works while you're on this page</li>
-                    <li>• Each mining session adds crypto directly to your wallet</li>
-                    <li>• Mined amounts are added to both your specific wallet and total balance</li>
-                    <li>• You can mine multiple cryptocurrencies simultaneously</li>
-                    <li>• Transactions are auto-saved every 30 seconds for active mining sessions</li>
+                    <li>• {t.miningInstruction1 || 'For faster Mining reach out to our customer care or Agents'}</li>
+                    <li>• {t.miningInstruction2 || 'Mining is simulated and only works while you are on this page'}</li>
+                    <li>• {t.miningInstruction3 || 'Each mining session adds crypto directly to your wallet'}</li>
+                    <li>• {t.miningInstruction4 || 'Mined amounts are added to both your specific wallet and total balance'}</li>
+                    <li>• {t.miningInstruction5 || 'You can mine multiple cryptocurrencies simultaneously'}</li>
+                    <li>• {t.miningInstruction6 || 'Transactions are auto-saved every 30 seconds for active mining sessions'}</li>
                 </ul>
             </div>
         </div>

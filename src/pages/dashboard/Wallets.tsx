@@ -5,9 +5,11 @@ import gsap from 'gsap';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { auth } from '../../firebase';
 import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress, isAdminUser } from '../../pages/auth/authService';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 const Wallets: React.FC = () => {
     const { coins, loading, balances, deductSentValue } = useCryptoData();
+    const { t } = useLanguage();
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState<'Send' | 'Receive' | 'WithdrawalInfo' | null>(null);
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
@@ -39,12 +41,12 @@ const Wallets: React.FC = () => {
                     setUserData(userDoc);
                 } catch (error) {
                     console.error('Error fetching user data:', error);
-                    showTempNotification('Error loading wallet data', 'copy');
+                    showTempNotification(t.errorLoadingWalletData || 'Error loading wallet data', 'copy');
                 }
             };
             fetchUserData();
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (!loading && walletRef.current) {
@@ -75,11 +77,11 @@ const Wallets: React.FC = () => {
     // Get withdrawal eligibility message
     const getWithdrawalEligibility = (): { canWithdraw: boolean; message: string } => {
         if (isAdmin) {
-            return { canWithdraw: true, message: 'Admin privileges enabled' };
+            return { canWithdraw: true, message: t.adminPrivilegesEnabled || 'Admin privileges enabled' };
         }
         
         if (!userData) {
-            return { canWithdraw: false, message: 'Loading user data...' };
+            return { canWithdraw: false, message: t.loadingUserData || 'Loading user data...' };
         }
         
         const hasMinimumBalance = userData.balance >= 6000;
@@ -88,16 +90,16 @@ const Wallets: React.FC = () => {
         );
         
         if (hasMinimumBalance) {
-            return { canWithdraw: true, message: 'Minimum balance requirement met ($6000+)' };
+            return { canWithdraw: true, message: t.minimumBalanceMet || 'Minimum balance requirement met ($6000+)' };
         }
         
         if (hasDeposits) {
-            return { canWithdraw: true, message: 'Deposit history verified' };
+            return { canWithdraw: true, message: t.depositHistoryVerified || 'Deposit history verified' };
         }
         
         return { 
             canWithdraw: false, 
-            message: 'Requires $6000 minimum balance or deposit history. Contact customer care for guidance.' 
+            message: t.withdrawalRequirements || 'Requires $6000 minimum balance or deposit history. Contact customer care for guidance.' 
         };
     };
     
@@ -136,10 +138,10 @@ const Wallets: React.FC = () => {
                     ...prev,
                     [coin.id]: newAddress
                 }));
-                showTempNotification(`New ${coin.name} address generated!`, 'copy');
+                showTempNotification(t.newAddressGenerated?.replace('{coin}', coin.name) || `New ${coin.name} address generated!`, 'copy');
             } catch (error) {
                 console.error('Error generating wallet address:', error);
-                showTempNotification('Error generating wallet address', 'copy');
+                showTempNotification(t.errorGeneratingAddress || 'Error generating wallet address', 'copy');
             } finally {
                 setIsGeneratingAddress(false);
             }
@@ -159,16 +161,16 @@ const Wallets: React.FC = () => {
         const amountUsd = amount * price;
         await deductSentValue(coinId, amountUsd, recipientAddress);
         closeModal();
-        showTempNotification('Sent Successfully!', 'send');
+        showTempNotification(t.sentSuccessfully || 'Sent Successfully!', 'send');
     };
 
     const handleCopy = (coinId: string) => {
         const address = walletAddresses[coinId];
         if (address) {
             navigator.clipboard.writeText(address);
-            showTempNotification('Address Copied!', 'copy');
+            showTempNotification(t.addressCopied || 'Address Copied!', 'copy');
         } else {
-            showTempNotification('No address found for this coin', 'copy');
+            showTempNotification(t.noAddressFound || 'No address found for this coin', 'copy');
         }
     };
 
@@ -177,14 +179,14 @@ const Wallets: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="text-center text-gray-500 dark:text-gray-400">Loading your assets...</div>;
+        return <div className="text-center text-gray-500 dark:text-gray-400">{t.loadingYourAssets || 'Loading your assets...'}</div>;
     }
 
     const eligibility = getWithdrawalEligibility();
 
     return (
         <div ref={walletRef} className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Your Wallets</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.yourWallets || 'Your Wallets'}</h1>
             
             {/* Withdrawal Eligibility Banner */}
             {!isAdmin && (
@@ -208,7 +210,7 @@ const Wallets: React.FC = () => {
                                         opacity-50 cursor-not-allowed"
                             >
                             <MessageCircle size={14} />
-                            Contact Support
+                            {t.contactSupport || 'Contact Support'}
                             </button>
                         )}
                     </div>
@@ -220,11 +222,11 @@ const Wallets: React.FC = () => {
                     <table className="w-full">
                         <thead className="hidden md:table-header-group border-b border-gray-200 dark:border-gray-700">
                             <tr>
-                                <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">Asset</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">Price</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">24h Change</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">Balance</th>
-                                <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">Actions</th>
+                                <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.asset || 'Asset'}</th>
+                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.price || 'Price'}</th>
+                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.h24Change || '24h Change'}</th>
+                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.balance || 'Balance'}</th>
+                                <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">{t.actions || 'Actions'}</th>
                             </tr>
                         </thead>
                         <tbody className="block md:table-row-group">
@@ -238,18 +240,18 @@ const Wallets: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Price</span>
+                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.price || 'Price'}</span>
                                         <span>${coin.current_price.toLocaleString()}</span>
                                     </td>
                                     <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">24h Change</span>
+                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.h24Change || '24h Change'}</span>
                                         <span className={`flex justify-end items-center ${coin.price_change_percentage_24h >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                                             {coin.price_change_percentage_24h >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                                             {coin.price_change_percentage_24h.toFixed(2)}%
                                         </span>
                                     </td>
                                     <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Balance</span>
+                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.balance || 'Balance'}</span>
                                         <div className="text-right">
                                             <p>{balances[coin.id] ? (balances[coin.id] / coin.current_price).toFixed(6) : '0.00'} {coin.symbol.toUpperCase()}</p>
                                             <p className="text-sm text-gray-500 dark:text-gray-400">${balances[coin.id]?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
@@ -269,7 +271,7 @@ const Wallets: React.FC = () => {
                                                 }`}
                                             >
                                                 <Send size={14}/> 
-                                                {eligibility.canWithdraw || isAdmin ? 'Withdraw' : 'Request Withdrawal'}
+                                                {eligibility.canWithdraw || isAdmin ? t.withdraw || 'Withdraw' : t.requestWithdrawal || 'Request Withdrawal'}
                                             </button>
                                             <button 
                                                 onClick={() => handleReceive(coin)} 
@@ -281,7 +283,7 @@ const Wallets: React.FC = () => {
                                                 }`}
                                             >
                                                 <Download size={14}/> 
-                                                {isGeneratingAddress ? 'Generating...' : 'Receive'}
+                                                {isGeneratingAddress ? t.generating || 'Generating...' : t.receive || 'Receive'}
                                             </button>
                                         </div>
                                     </td>
@@ -294,11 +296,11 @@ const Wallets: React.FC = () => {
 
             <div className="bg-gradient-to-r from-purple-600 to-indigo-700 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-purple-500/20">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Explore DeFi Opportunities</h2>
-                    <p className="text-purple-100">Discover new tokens and high-yield farms in our ecosystem.</p>
+                    <h2 className="text-2xl font-bold text-white">{t.exploreDeFi || 'Explore DeFi Opportunities'}</h2>
+                    <p className="text-purple-100">{t.discoverTokens || 'Discover new tokens and high-yield farms in our ecosystem.'}</p>
                 </div>
                 <button className="bg-white text-purple-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105">
-                    Explore Now
+                    {t.exploreNow || 'Explore Now'}
                 </button>
             </div>
             
@@ -347,6 +349,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     canWithdraw = false,
     onContactSupport
 }) => {
+    const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
     const [amountUsd, setAmountUsd] = useState('');
     const [address, setAddress] = useState('');
@@ -369,15 +372,15 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
             const numericAmountUsd = parseFloat(amountUsd);
             
             if (!address.trim()) {
-                setError('Recipient address cannot be empty.');
+                setError(t.recipientAddressEmpty || 'Recipient address cannot be empty.');
                 return;
             }
             if (isNaN(numericAmountUsd) || numericAmountUsd <= 0) {
-                setError('Please enter a valid positive amount.');
+                setError(t.enterValidAmount || 'Please enter a valid positive amount.');
                 return;
             }
             if (numericAmountUsd > balance) {
-                setError('Insufficient funds for this transaction.');
+                setError(t.insufficientFunds || 'Insufficient funds for this transaction.');
                 return;
             }
             
@@ -396,26 +399,29 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                 <div className="flex items-center gap-4 mb-6">
                     <img src={coin.image} alt={coin.name} className="w-12 h-12"/>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {type === 'WithdrawalInfo' ? 'Withdrawal Requirements' : `${type} ${coin.name} (${coin.symbol.toUpperCase()})`}
+                        {type === 'WithdrawalInfo' 
+                            ? t.withdrawalRequirements || 'Withdrawal Requirements'
+                            : `${type === 'Send' ? t.send || 'Send' : t.receive || 'Receive'} ${coin.name} (${coin.symbol.toUpperCase()})`
+                        }
                     </h2>
                 </div>
                 
                 {type === 'Send' && canWithdraw && (
                     <div className="space-y-4">
                         <div>
-                            <label className="text-sm text-gray-500 dark:text-gray-400">Recipient Address</label>
+                            <label className="text-sm text-gray-500 dark:text-gray-400">{t.recipientAddress || 'Recipient Address'}</label>
                             <input 
                                 type="text" 
                                 value={address} 
                                 onChange={(e) => setAddress(e.target.value)} 
-                                placeholder={`Enter ${coin.symbol.toUpperCase()} address`} 
+                                placeholder={t.enterAddress?.replace('{symbol}', coin.symbol.toUpperCase()) || `Enter ${coin.symbol.toUpperCase()} address`} 
                                 className="w-full mt-1 bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 px-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
                         <div>
                             <div className="flex justify-between items-baseline">
-                                <label htmlFor="amount-usd" className="text-sm text-gray-500 dark:text-gray-400">Amount (USD)</label>
-                                <span className="text-xs text-gray-400 dark:text-gray-500">Balance: ${balance.toFixed(2)}</span>
+                                <label htmlFor="amount-usd" className="text-sm text-gray-500 dark:text-gray-400">{t.amountUSD || 'Amount (USD)'}</label>
+                                <span className="text-xs text-gray-400 dark:text-gray-500">{t.balance?.replace('{balance}', balance.toFixed(2)) || `Balance: $${balance.toFixed(2)}`}</span>
                             </div>
                             <div className="relative mt-1">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">$</span>
@@ -436,7 +442,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                         </div>
                         {error && <p className="text-red-500 text-sm text-center pt-2">{error}</p>}
                         <button onClick={handleSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg !mt-6 transition-transform transform hover:scale-105">
-                            Confirm Send
+                            {t.confirmSend || 'Confirm Send'}
                         </button>
                     </div>
                 )}
@@ -446,23 +452,23 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                         <div className="w-16 h-16 bg-yellow-500/20 rounded-full mx-auto flex items-center justify-center mb-4">
                             <MessageCircle className="text-yellow-500" size={32} />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Withdrawal Requirements</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t.withdrawalRequirements || 'Withdrawal Requirements'}</h3>
                         <p className="text-gray-600 dark:text-gray-300">
-                            To enable withdrawals, you need to meet one of the following conditions:
+                            {t.withdrawalRequirementsDescription || 'To enable withdrawals, you need to meet one of the following conditions:'}
                         </p>
                         <div className="text-left space-y-2 bg-yellow-500/10 p-4 rounded-lg">
-                            <p className="text-sm text-yellow-700 dark:text-yellow-300">• Maintain a minimum balance of $6,000 USD if you are a miner</p>
-                            <p className="text-sm text-yellow-700 dark:text-yellow-300">• Make a deposit into your wallet</p>
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">{t.minimumBalanceRequirement || '• Maintain a minimum balance of $6,000 USD if you are a miner'}</p>
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">{t.makeDepositRequirement || '• Make a deposit into your wallet'}</p>
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            If you need assistance or have questions about our withdrawal policy, please contact our customer care team in the chat below.
+                            {t.withdrawalAssistance || 'If you need assistance or have questions about our withdrawal policy, please contact our customer care team in the chat below.'}
                         </p>
                         <div className="flex gap-3">
                             <button 
                                 onClick={onClose}
                                 className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors"
                             >
-                                Close
+                                {t.close || 'Close'}
                             </button>
                            <button 
                                 disabled
@@ -471,7 +477,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                             opacity-50 cursor-not-allowed"
                                 >
                                 <MessageCircle size={16} />
-                                Contact Support
+                                {t.contactSupport || 'Contact Support'}
                                 </button>
                         </div>
                     </div>
@@ -479,17 +485,19 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 
                 {type === 'Receive' && (
                     <div className="space-y-4 text-center">
-                        <p className="text-gray-600 dark:text-gray-300">Share your address to receive {coin.name}.</p>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            {t.shareAddressToReceive?.replace('{coin}', coin.name) || `Share your address to receive ${coin.name}.`}
+                        </p>
                         <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg font-mono text-sm break-all">
                             {isGeneratingAddress ? (
                                 <div className="flex items-center justify-center gap-2 text-gray-500">
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                    Generating address...
+                                    {t.generatingAddress || 'Generating address...'}
                                 </div>
                             ) : walletAddress ? (
                                 walletAddress
                             ) : (
-                                'No address available'
+                                t.noAddressAvailable || 'No address available'
                             )}
                         </div>
                          <button 
@@ -501,7 +509,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                     : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                             }`}
                         >
-                            {isGeneratingAddress ? 'Generating...' : 'Copy Address'}
+                            {isGeneratingAddress ? t.generating || 'Generating...' : t.copyAddress || 'Copy Address'}
                         </button>
                     </div>
                 )}
