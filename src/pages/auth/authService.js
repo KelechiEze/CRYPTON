@@ -32,6 +32,18 @@ export const DEFAULT_WALLET_ADDRESSES = {
   polygon: '0x8A9C3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B'
 };
 
+// ========== SPIN WHEEL CONFIGURATION ========== //
+export const SPIN_WHEEL_REWARDS = [
+  { id: 1, type: 'booster', name: '2x Mining Booster', value: '2x Mining Power for 24h', color: 'from-purple-500 to-pink-500', icon: 'Zap', usdValue: 0 },
+  { id: 2, type: 'usdt', name: '5 USDT', value: '$5.00 USDT', color: 'from-green-500 to-emerald-500', icon: 'DollarSign', usdValue: 5 },
+  { id: 3, type: 'booster', name: '1.5x Speed Booster', value: '1.5x Speed for 12h', color: 'from-blue-500 to-cyan-500', icon: 'TrendingUp', usdValue: 0 },
+  { id: 4, type: 'usdt', name: '2 USDT', value: '$2.00 USDT', color: 'from-green-500 to-emerald-500', icon: 'DollarSign', usdValue: 2 },
+  { id: 5, type: 'booster', name: '3x Luck Booster', value: '3x Luck for 6h', color: 'from-orange-500 to-red-500', icon: 'Gift', usdValue: 0 },
+  { id: 6, type: 'usdt', name: '10 USDT', value: '$10.00 USDT', color: 'from-green-500 to-emerald-500', icon: 'DollarSign', usdValue: 10 },
+  { id: 7, type: 'booster', name: '1.8x Profit Booster', value: '1.8x Profit for 18h', color: 'from-yellow-500 to-amber-500', icon: 'TrendingUp', usdValue: 0 },
+  { id: 8, type: 'usdt', name: '1 USDT', value: '$1.00 USDT', color: 'from-green-500 to-emerald-500', icon: 'DollarSign', usdValue: 1 }
+];
+
 // ========== DATABASE-BASED DEFAULTS ========== //
 // This function checks if there are custom defaults in the database
 export const getDefaultWalletAddresses = async () => {
@@ -102,6 +114,229 @@ export const isAdminUser = async (userId) => {
         "jDDCKoecgkRLnVzbZ32vSEt7Cqk1",
     ];
     return adminUserIds.includes(userId);
+};
+
+// ========== SPIN WHEEL FUNCTIONS ========== //
+
+// Get user spin data
+export const getUserSpinData = async (userId) => {
+  try {
+    const spinDoc = await getDoc(doc(db, 'userSpins', userId));
+    if (spinDoc.exists()) {
+      return spinDoc.data();
+    } else {
+      // Initialize spin data for new user
+      const nextSpinDate = new Date();
+      nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+      
+      const initialSpinData = {
+        spinsLeft: 1,
+        lastSpinDate: null,
+        nextSpinDate: nextSpinDate.toISOString(),
+        totalSpins: 0,
+        rewardsWon: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await setDoc(doc(db, 'userSpins', userId), initialSpinData);
+      return initialSpinData;
+    }
+  } catch (error) {
+    console.error('Error getting user spin data:', error);
+    // Return default data on error
+    const nextSpinDate = new Date();
+    nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+    
+    return {
+      spinsLeft: 1,
+      lastSpinDate: null,
+      nextSpinDate: nextSpinDate.toISOString(),
+      totalSpins: 0,
+      rewardsWon: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+};
+
+// Update user spin data
+export const updateUserSpinData = async (userId, spinData) => {
+  try {
+    const spinRef = doc(db, 'userSpins', userId);
+    await setDoc(spinRef, {
+      ...spinData,
+      updatedAt: new Date()
+    }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user spin data:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Process spin reward
+export const processSpinReward = async (userId, reward) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const spinRef = doc(db, 'userSpins', userId);
+    
+    // Get current user data
+    const userDoc = await getDoc(userRef);
+    const userData = userDoc.data();
+    
+    // Create transaction for the reward
+    const transaction = {
+      id: `spin-${Date.now()}`,
+      type: 'spin',
+      coinName: reward.type === 'usdt' ? 'USDT' : 'Booster',
+      amount: reward.usdValue || 0,
+      amountUsd: reward.usdValue || 0,
+      currency: reward.type === 'usdt' ? 'USDT' : 'BOOST',
+      description: `Won ${reward.name} from Spin Wheel`,
+      status: 'completed',
+      timestamp: new Date()
+    };
+    
+    // Update user data based on reward type
+    const updates = {
+      updatedAt: new Date(),
+      transactions: arrayUnion(transaction)
+    };
+    
+    // Add USDT to balance if it's a USDT reward
+    if (reward.usdValue > 0) {
+      updates.balance = increment(reward.usdValue);
+    }
+    
+    // Update user document
+    await updateDoc(userRef, updates);
+    
+    // Update spin data
+    const spinData = await getUserSpinData(userId);
+    const updatedSpinData = {
+      ...spinData,
+      spinsLeft: 0,
+      lastSpinDate: new Date().toISOString(),
+      totalSpins: (spinData.totalSpins || 0) + 1,
+      rewardsWon: arrayUnion({
+        ...reward,
+        wonAt: new Date()
+      }),
+      updatedAt: new Date()
+    };
+    
+    await updateUserSpinData(userId, updatedSpinData);
+    
+    return { 
+      success: true, 
+      reward,
+      transaction 
+    };
+  } catch (error) {
+    console.error('Error processing spin reward:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Check if user can spin - UPDATED WITH PROPER VALIDATION
+export const canUserSpin = async (userId) => {
+  try {
+    const spinData = await getUserSpinData(userId);
+    
+    // Check if user has spins left
+    if (spinData.spinsLeft > 0) {
+      return { 
+        canSpin: true, 
+        spinsLeft: spinData.spinsLeft,
+        nextSpinDate: null 
+      };
+    }
+    
+    // Check if next spin date has arrived
+    if (spinData.nextSpinDate) {
+      const nextSpin = new Date(spinData.nextSpinDate);
+      const now = new Date();
+      
+      if (now >= nextSpin) {
+        // Reset spins for new month
+        const newNextSpinDate = new Date();
+        newNextSpinDate.setMonth(newNextSpinDate.getMonth() + 1);
+        
+        await updateUserSpinData(userId, {
+          spinsLeft: 1,
+          nextSpinDate: newNextSpinDate.toISOString(),
+          updatedAt: new Date()
+        });
+        
+        return { 
+          canSpin: true, 
+          spinsLeft: 1,
+          nextSpinDate: null 
+        };
+      } else {
+        return { 
+          canSpin: false, 
+          spinsLeft: 0,
+          nextSpinDate: spinData.nextSpinDate 
+        };
+      }
+    }
+    
+    // If no next spin date is set, initialize it
+    const nextSpinDate = new Date();
+    nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+    
+    await updateUserSpinData(userId, {
+      spinsLeft: 0,
+      nextSpinDate: nextSpinDate.toISOString(),
+      updatedAt: new Date()
+    });
+    
+    return { 
+      canSpin: false, 
+      spinsLeft: 0,
+      nextSpinDate: nextSpinDate.toISOString() 
+    };
+  } catch (error) {
+    console.error('Error checking if user can spin:', error);
+    return { 
+      canSpin: false, 
+      spinsLeft: 0,
+      nextSpinDate: null 
+    };
+  }
+};
+
+// Reset user spins (admin function)
+export const resetUserSpins = async (userId) => {
+  try {
+    const nextSpinDate = new Date();
+    nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+    
+    await updateUserSpinData(userId, {
+      spinsLeft: 1,
+      lastSpinDate: null,
+      nextSpinDate: nextSpinDate.toISOString(),
+      updatedAt: new Date()
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting user spins:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get user spin history
+export const getUserSpinHistory = async (userId) => {
+  try {
+    const spinData = await getUserSpinData(userId);
+    return spinData.rewardsWon || [];
+  } catch (error) {
+    console.error('Error getting user spin history:', error);
+    return [];
+  }
 };
 
 // Sign Up Function - OPTIMIZED FOR NEW DASHBOARD
@@ -194,6 +429,9 @@ export const signUp = async (email, password, userData) => {
       lastLogin: new Date(),
       updatedAt: new Date()
     });
+
+    // Initialize spin data for new user
+    await getUserSpinData(user.uid);
 
     return { success: true, user };
   } catch (error) {
