@@ -7,6 +7,15 @@ import { auth } from '../../firebase';
 import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress, isAdminUser } from '../../pages/auth/authService';
 import { useLanguage } from '../../contexts/LanguageContext';
 
+// Mock function for getUserData - you'll need to implement this based on your backend
+const getUserData = async (userId: string) => {
+  // This is a mock implementation - replace with your actual user data fetching logic
+  return {
+    balance: 0,
+    transactions: []
+  };
+};
+
 const Wallets: React.FC = () => {
     const { coins, loading, balances, deductSentValue } = useCryptoData();
     const { t } = useLanguage();
@@ -316,6 +325,7 @@ const Wallets: React.FC = () => {
                     isGeneratingAddress={isGeneratingAddress}
                     canWithdraw={eligibility.canWithdraw || isAdmin}
                     onContactSupport={handleContactSupport}
+                    t={t}
                 />
             )}
             {notification.show && <Notification message={notification.message} type={notification.type} />}
@@ -323,7 +333,7 @@ const Wallets: React.FC = () => {
     );
 };
 
-// Update TransactionModalProps interface
+// Updated TransactionModalProps interface
 interface TransactionModalProps {
     type: 'Send' | 'Receive' | 'WithdrawalInfo';
     coin: Coin;
@@ -335,6 +345,7 @@ interface TransactionModalProps {
     isGeneratingAddress?: boolean;
     canWithdraw?: boolean;
     onContactSupport?: () => void;
+    t: any; // Add t prop for translations
 }
 
 const TransactionModal: React.FC<TransactionModalProps> = ({ 
@@ -347,9 +358,9 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     walletAddress,
     isGeneratingAddress = false,
     canWithdraw = false,
-    onContactSupport
+    onContactSupport,
+    t
 }) => {
-    const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
     const [amountUsd, setAmountUsd] = useState('');
     const [address, setAddress] = useState('');
@@ -518,7 +529,6 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     )
 }
 
-// Rest of the code remains the same...
 interface NotificationProps {
     message: string;
     type: 'copy' | 'send';

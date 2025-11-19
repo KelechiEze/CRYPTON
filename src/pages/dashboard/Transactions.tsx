@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowDownRight, RefreshCw, X, Copy } from 'lucide-react';
 import gsap from 'gsap';
 import { subscribeToUserData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Transaction {
     id: string;
@@ -27,6 +28,7 @@ const Transactions: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState<any>(null);
     const tableRef = useRef<HTMLDivElement>(null);
+    const { t } = useLanguage();
 
     useEffect(() => {
         // Get current user
@@ -45,7 +47,7 @@ const Transactions: React.FC = () => {
                         amount: typeof tx.amount === 'number' ? tx.amount : 0,
                         amountUsd: typeof tx.amountUsd === 'number' ? tx.amountUsd : 0,
                         currency: tx.currency || 'USD',
-                        description: tx.description || 'Transaction',
+                        description: tx.description || t.transaction || 'Transaction',
                         status: tx.status || 'completed',
                         timestamp: tx.timestamp,
                         transactionHash: tx.transactionHash,
@@ -73,7 +75,7 @@ const Transactions: React.FC = () => {
             setLoading(false);
             setTransactions([]);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         if (!loading && tableRef.current) {
@@ -100,12 +102,12 @@ const Transactions: React.FC = () => {
     
     const getDisplayType = (type: string): string => {
         switch (type) {
-            case 'sent': return 'Sent';
-            case 'received': return 'Received';
-            case 'swapped': return 'Swapped';
-            case 'bonus': return 'Bonus';
-            case 'mined': return 'Mined';
-            default: return 'Transaction';
+            case 'sent': return t.sent || 'Sent';
+            case 'received': return t.received || 'Received';
+            case 'swapped': return t.swapped || 'Swapped';
+            case 'bonus': return t.welcomeBonus || 'Bonus';
+            case 'mined': return t.mined || 'Mined';
+            default: return t.transaction || 'Transaction';
         }
     };
 
@@ -143,11 +145,11 @@ const Transactions: React.FC = () => {
     };
 
     const formatDate = (timestamp: any): string => {
-        if (!timestamp) return 'Unknown date';
+        if (!timestamp) return t.unknownDate || 'Unknown date';
         
         try {
             const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-            if (isNaN(date.getTime())) return 'Invalid date';
+            if (isNaN(date.getTime())) return t.invalidDate || 'Invalid date';
             
             return date.toLocaleString('en-US', {
                 year: 'numeric',
@@ -157,27 +159,36 @@ const Transactions: React.FC = () => {
                 minute: '2-digit'
             });
         } catch (error) {
-            return 'Invalid date';
+            return t.invalidDate || 'Invalid date';
         }
     };
 
     const getDisplayCrypto = (tx: Transaction): string => {
         if (tx.type === 'bonus') {
-            return 'Welcome Bonus';
+            return t.welcomeBonus || 'Welcome Bonus';
         }
         if (tx.type === 'mined') {
-            const coinName = tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : 'Crypto';
-            return `${coinName} Mining`;
+            const coinName = tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : t.crypto || 'Crypto';
+            return `${coinName} ${t.mined || 'Mining'}`;
         }
-        return tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : 'Crypto';
+        return tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : t.crypto || 'Crypto';
+    };
+
+    const getStatusText = (status: string): string => {
+        switch (status) {
+            case 'completed': return t.completed || 'Completed';
+            case 'pending': return t.pending || 'Pending';
+            case 'failed': return t.failed || 'Failed';
+            default: return status.charAt(0).toUpperCase() + status.slice(1);
+        }
     };
 
     if (loading) {
         return (
             <div className="space-y-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.transactionHistory || 'Transaction History'}</h1>
                 <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    Loading transactions...
+                    {t.loadingTransactions || 'Loading transactions...'}
                 </div>
             </div>
         );
@@ -185,57 +196,57 @@ const Transactions: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.transactionHistory || 'Transaction History'}</h1>
 
             <div ref={tableRef} className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
                 {transactions.length === 0 ? (
                     <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                        <p className="text-lg mb-2">No transactions yet</p>
-                        <p className="text-sm">Your transaction history will appear here</p>
+                        <p className="text-lg mb-2">{t.noTransactionsYet || 'No transactions yet'}</p>
+                        <p className="text-sm">{t.transactionsWillAppear || 'Your transaction history will appear here'}</p>
                     </div>
                 ) : (
                     <div>
                         <table className="w-full">
                             <thead className="hidden md:table-header-group border-b border-gray-200 dark:border-gray-700">
                                 <tr>
-                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">Type</th>
-                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">Asset</th>
-                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">Amount</th>
-                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">Value</th>
-                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">Date</th>
-                                    <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.type || 'Type'}</th>
+                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.asset || 'Asset'}</th>
+                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.amount || 'Amount'}</th>
+                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.value || 'Value'}</th>
+                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.date || 'Date'}</th>
+                                    <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">{t.status || 'Status'}</th>
                                 </tr>
                             </thead>
                             <tbody className="block md:table-row-group">
                                 {transactions.map(tx => (
                                     <tr key={tx.id} onClick={() => handleRowClick(tx)} className="block md:table-row mb-4 last:mb-0 md:mb-0 rounded-lg p-4 md:p-0 shadow-lg md:shadow-none bg-white/60 dark:bg-gray-800/60 md:bg-transparent dark:md:bg-transparent md:border-b md:border-gray-200 dark:md:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer">
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell border-b border-gray-200/50 dark:border-gray-700/50 md:border-b-0">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Type</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.type || 'Type'}</span>
                                             <div className="flex items-center gap-3">
                                                 {getIcon(tx.type)}
                                                 <span>{getDisplayType(tx.type)}</span>
                                             </div>
                                         </td>
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:font-semibold border-b border-gray-200/50 dark:border-gray-700/50 md:border-b-0">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Asset</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.asset || 'Asset'}</span>
                                             <span>{getDisplayCrypto(tx)}</span>
                                         </td>
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono border-b border-gray-200/50 dark:border-gray-700/50 md:border-b-0">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Amount</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.amount || 'Amount'}</span>
                                             <span>{formatAmount(tx)}</span>
                                         </td>
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono text-gray-600 dark:text-gray-300 border-b border-gray-200/50 dark:border-gray-700/50 md:border-b-0">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Value</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.value || 'Value'}</span>
                                             <span>{formatValue(tx)}</span>
                                         </td>
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell text-gray-500 dark:text-gray-400 border-b border-gray-200/50 dark:border-gray-700/50 md:border-b-0">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Date</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.date || 'Date'}</span>
                                             <span>{formatDate(tx.timestamp)}</span>
                                         </td>
                                         <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-center">
-                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">Status</span>
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.status || 'Status'}</span>
                                             <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusClass(tx.status)}`}>
-                                                {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                                                {getStatusText(tx.status)}
                                             </span>
                                         </td>
                                     </tr>
@@ -245,7 +256,7 @@ const Transactions: React.FC = () => {
                     </div>
                 )}
             </div>
-            {selectedTx && <TransactionDetailModal transaction={selectedTx} onClose={handleCloseModal} getStatusClass={getStatusClass} getIcon={getIcon} />}
+            {selectedTx && <TransactionDetailModal transaction={selectedTx} onClose={handleCloseModal} getStatusClass={getStatusClass} getIcon={getIcon} t={t} />}
         </div>
     );
 };
@@ -255,9 +266,10 @@ interface TransactionDetailModalProps {
     onClose: () => void;
     getStatusClass: (status: string) => string;
     getIcon: (type: string) => React.ReactNode;
+    t: any;
 }
 
-const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transaction, onClose, getStatusClass, getIcon }) => {
+const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transaction, onClose, getStatusClass, getIcon, t }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -270,11 +282,11 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
     };
 
     const formatDate = (timestamp: any): string => {
-        if (!timestamp) return 'Unknown date';
+        if (!timestamp) return t.unknownDate || 'Unknown date';
         
         try {
             const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-            if (isNaN(date.getTime())) return 'Invalid date';
+            if (isNaN(date.getTime())) return t.invalidDate || 'Invalid date';
             
             return date.toLocaleString('en-US', {
                 year: 'numeric',
@@ -285,30 +297,30 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
                 second: '2-digit'
             });
         } catch (error) {
-            return 'Invalid date';
+            return t.invalidDate || 'Invalid date';
         }
     };
 
     const getDisplayType = (type: string): string => {
         switch (type) {
-            case 'sent': return 'Sent';
-            case 'received': return 'Received';
-            case 'swapped': return 'Swapped';
-            case 'bonus': return 'Bonus';
-            case 'mined': return 'Mined';
-            default: return 'Transaction';
+            case 'sent': return t.sent || 'Sent';
+            case 'received': return t.received || 'Received';
+            case 'swapped': return t.swapped || 'Swapped';
+            case 'bonus': return t.welcomeBonus || 'Bonus';
+            case 'mined': return t.mined || 'Mined';
+            default: return t.transaction || 'Transaction';
         }
     };
 
     const getDisplayCrypto = (tx: Transaction): string => {
         if (tx.type === 'bonus') {
-            return 'Welcome Bonus';
+            return t.welcomeBonus || 'Welcome Bonus';
         }
         if (tx.type === 'mined') {
-            const coinName = tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : 'Crypto';
-            return `${coinName} Mining`;
+            const coinName = tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : t.crypto || 'Crypto';
+            return `${coinName} ${t.mined || 'Mining'}`;
         }
-        return tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : 'Crypto';
+        return tx.coinId ? tx.coinId.charAt(0).toUpperCase() + tx.coinId.slice(1) : t.crypto || 'Crypto';
     };
 
     const formatAmount = (tx: Transaction): string => {
@@ -321,6 +333,15 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
             return `${amount.toFixed(6)} ${currency}`;
         } catch (error) {
             return '0.000000 USD';
+        }
+    };
+
+    const getStatusText = (status: string): string => {
+        switch (status) {
+            case 'completed': return t.completed || 'Completed';
+            case 'pending': return t.pending || 'Pending';
+            case 'failed': return t.failed || 'Failed';
+            default: return status.charAt(0).toUpperCase() + status.slice(1);
         }
     };
 
@@ -339,19 +360,19 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
                     }`}>
                         {getIcon(transaction.type)}
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Transaction Details</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.transactionDetails || 'Transaction Details'}</h2>
                 </div>
                 
                 <div className="space-y-4">
-                    <DetailRow label="Type" value={getDisplayType(transaction.type)} />
-                    <DetailRow label="Asset" value={getDisplayCrypto(transaction)} />
-                    <DetailRow label="Amount" value={formatAmount(transaction)} />
-                    <DetailRow label="Value" value={`$${(transaction.amountUsd || 0).toFixed(2)}`} />
-                    <DetailRow label="Description" value={transaction.description || 'Transaction'} />
-                    <DetailRow label="Date" value={formatDate(transaction.timestamp)} />
-                    <DetailRow label="Status">
+                    <DetailRow label={t.type || 'Type'} value={getDisplayType(transaction.type)} />
+                    <DetailRow label={t.asset || 'Asset'} value={getDisplayCrypto(transaction)} />
+                    <DetailRow label={t.amount || 'Amount'} value={formatAmount(transaction)} />
+                    <DetailRow label={t.value || 'Value'} value={`$${(transaction.amountUsd || 0).toFixed(2)}`} />
+                    <DetailRow label={t.description || 'Description'} value={transaction.description || t.transaction || 'Transaction'} />
+                    <DetailRow label={t.date || 'Date'} value={formatDate(transaction.timestamp)} />
+                    <DetailRow label={t.status || 'Status'}>
                         <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClass(transaction.status)}`}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                            {getStatusText(transaction.status)}
                         </span>
                     </DetailRow>
                     
@@ -359,16 +380,16 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ transac
                         <>
                             <hr className="border-gray-200 dark:border-gray-700" />
                             {transaction.recipientAddress && (
-                                <DetailRow label="Recipient Address" value={transaction.recipientAddress} isAddress />
+                                <DetailRow label={t.recipientAddress || 'Recipient Address'} value={transaction.recipientAddress} isAddress />
                             )}
                             {transaction.fromAddress && (
-                                <DetailRow label="From Address" value={transaction.fromAddress} isAddress />
+                                <DetailRow label={t.fromAddress || 'From Address'} value={transaction.fromAddress} isAddress />
                             )}
                         </>
                     )}
                     
                     {transaction.fee && transaction.fee > 0 && (
-                        <DetailRow label="Transaction Fee" value={`${transaction.fee} ${transaction.currency || 'USD'}`} />
+                        <DetailRow label={t.transactionFee || 'Transaction Fee'} value={`${transaction.fee} ${transaction.currency || 'USD'}`} />
                     )}
                 </div>
             </div>
