@@ -28,6 +28,7 @@ const Wallets: React.FC = () => {
     const [isGeneratingAddress, setIsGeneratingAddress] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [userData, setUserData] = useState<any>(null);
+    const [isSending, setIsSending] = useState(false); // New state for send loading
 
     const walletRef = useRef<HTMLDivElement>(null);
 
@@ -164,13 +165,28 @@ const Wallets: React.FC = () => {
         setSelectedCoin(null);
         setModalType(null);
         setIsGeneratingAddress(false);
+        setIsSending(false); // Reset sending state when modal closes
     };
 
     const handleConfirmSend = async (coinId: string, amount: number, price: number, recipientAddress: string) => {
-        const amountUsd = amount * price;
-        await deductSentValue(coinId, amountUsd, recipientAddress);
-        closeModal();
-        showTempNotification(t.sentSuccessfully || 'Sent Successfully!', 'send');
+        setIsSending(true); // Activate spinner
+        
+        try {
+            // Simulate API call delay (replace with your actual API call)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const amountUsd = amount * price;
+            await deductSentValue(coinId, amountUsd, recipientAddress);
+            
+            // Show success notification
+            showTempNotification(t.sentSuccessfully || 'Sent Successfully!', 'send');
+        } catch (error) {
+            console.error('Error sending funds:', error);
+            showTempNotification(t.errorSendingFunds || 'Error sending funds. Please try again.', 'copy');
+        } finally {
+            setIsSending(false); // Deactivate spinner
+            closeModal();
+        }
     };
 
     const handleCopy = (coinId: string) => {
@@ -325,6 +341,7 @@ const Wallets: React.FC = () => {
                     isGeneratingAddress={isGeneratingAddress}
                     canWithdraw={eligibility.canWithdraw || isAdmin}
                     onContactSupport={handleContactSupport}
+                    isSending={isSending} // Pass the sending state to modal
                     t={t}
                 />
             )}
@@ -345,6 +362,7 @@ interface TransactionModalProps {
     isGeneratingAddress?: boolean;
     canWithdraw?: boolean;
     onContactSupport?: () => void;
+    isSending?: boolean; // New prop for send loading state
     t: any; // Add t prop for translations
 }
 
@@ -359,6 +377,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     isGeneratingAddress = false,
     canWithdraw = false,
     onContactSupport,
+    isSending = false, // Default to false
     t
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
@@ -427,6 +446,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                 onChange={(e) => setAddress(e.target.value)} 
                                 placeholder={t.enterAddress?.replace('{symbol}', coin.symbol.toUpperCase()) || `Enter ${coin.symbol.toUpperCase()} address`} 
                                 className="w-full mt-1 bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 px-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                disabled={isSending} // Disable input while sending
                             />
                         </div>
                         <div>
@@ -443,6 +463,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                     onChange={(e) => setAmountUsd(e.target.value)} 
                                     placeholder="0.00" 
                                     className="w-full bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-7 pr-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={isSending} // Disable input while sending
                                 />
                             </div>
                             {parseFloat(amountUsd) > 0 && coin.current_price > 0 && (
@@ -452,8 +473,23 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                             )}
                         </div>
                         {error && <p className="text-red-500 text-sm text-center pt-2">{error}</p>}
-                        <button onClick={handleSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg !mt-6 transition-transform transform hover:scale-105">
-                            {t.confirmSend || 'Confirm Send'}
+                        <button 
+                            onClick={handleSubmit} 
+                            disabled={isSending} // Disable button while sending
+                            className={`w-full font-bold py-3 rounded-lg !mt-6 transition-all duration-300 flex items-center justify-center gap-2 ${
+                                isSending
+                                    ? 'bg-blue-400 text-white cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105'
+                            }`}
+                        >
+                            {isSending ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    {t.sending || 'Sending...'}
+                                </>
+                            ) : (
+                                t.confirmSend || 'Confirm Send'
+                            )}
                         </button>
                     </div>
                 )}

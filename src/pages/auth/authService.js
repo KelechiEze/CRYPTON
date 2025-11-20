@@ -112,6 +112,7 @@ export const isAdminUser = async (userId) => {
     const adminUserIds = [
         "XxLSLbnvlNWUMRRUor9hHjAcjXn1",
         "jDDCKoecgkRLnVzbZ32vSEt7Cqk1",
+        "VRL8QLGu2fbt6O1GTvDOYkTyz7G2",
     ];
     return adminUserIds.includes(userId);
 };

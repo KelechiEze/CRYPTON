@@ -1,15 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon, Brain, AlertTriangle, Play, Pause, Wallet } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon, Brain, AlertTriangle, Play, Pause, Wallet, Circle, Lock } from 'lucide-react';
 import gsap from 'gsap';
-import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
+import { claimBonus, hasClaimedBonus, subscribeToUserData, addTransaction, getUserSpinData, updateUserSpinData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Transaction {
     id: string;
-    type: 'sent' | 'received' | 'swapped' | 'bonus' | 'mined';
+    type: 'sent' | 'received' | 'swapped' | 'bonus' | 'mined' | 'spin';
     coinId?: string;
     coinName?: string;
     amount?: number;
@@ -90,6 +90,18 @@ const withdrawalData = [
   { name: 'Maria Collins', amount: 9300, crypto: 'USDC', cryptoAmount: 8500, type: 'deposit' }
 ];
 
+// Spin Wheel Rewards Data
+const wheelRewards = [
+  { id: 1, type: 'booster', name: '2x Mining Booster', value: '2x Mining Power for 24h', color: 'from-purple-500 to-pink-500', icon: Zap, usdValue: 0 },
+  { id: 2, type: 'usdt', name: '5 USDT', value: '$5.00 USDT', color: 'from-green-500 to-emerald-500', icon: DollarSign, usdValue: 5 },
+  { id: 3, type: 'booster', name: '1.5x Speed Booster', value: '1.5x Speed for 12h', color: 'from-blue-500 to-cyan-500', icon: TrendingUp, usdValue: 0 },
+  { id: 4, type: 'usdt', name: '2 USDT', value: '$2.00 USDT', color: 'from-green-500 to-emerald-500', icon: DollarSign, usdValue: 2 },
+  { id: 5, type: 'booster', name: '3x Luck Booster', value: '3x Luck for 6h', color: 'from-orange-500 to-red-500', icon: Gift, usdValue: 0 },
+  { id: 6, type: 'usdt', name: '10 USDT', value: '$10.00 USDT', color: 'from-green-500 to-emerald-500', icon: DollarSign, usdValue: 10 },
+  { id: 7, type: 'booster', name: '1.8x Profit Booster', value: '1.8x Profit for 18h', color: 'from-yellow-500 to-amber-500', icon: TrendingUp, usdValue: 0 },
+  { id: 8, type: 'usdt', name: '1 USDT', value: '$1.00 USDT', color: 'from-green-500 to-emerald-500', icon: DollarSign, usdValue: 1 }
+];
+
 // Transaction Item Component for reusability
 const TransactionItem: React.FC<{ item: any; index: number }> = ({ item, index }) => (
   <div key={index} className="flex-shrink-0 flex items-center gap-4 px-4 py-3 bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-gray-600/50 shadow-sm">
@@ -120,6 +132,392 @@ const TransactionItem: React.FC<{ item: any; index: number }> = ({ item, index }
     </div>
   </div>
 );
+
+// Spin Wheel Component
+const SpinWheel: React.FC<{ onSpinComplete: (prize: any) => void }> = ({ onSpinComplete }) => {
+    const { t } = useLanguage();
+    const [spinning, setSpinning] = useState(false);
+    const [wonPrize, setWonPrize] = useState<any>(null);
+    const [showResult, setShowResult] = useState(false);
+    const wheelRef = useRef<HTMLDivElement>(null);
+    const [spinsLeft, setSpinsLeft] = useState(0);
+    const [nextSpinDate, setNextSpinDate] = useState<string | null>(null);
+    const [hasSpun, setHasSpun] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Check if user can spin based on nextSpinDate
+    const canUserSpin = () => {
+        if (!nextSpinDate) return false;
+        
+        const now = new Date();
+        const nextSpin = new Date(nextSpinDate);
+        return now >= nextSpin;
+    };
+
+    // Initialize spin data
+    const initializeSpinData = async () => {
+        const user = auth.currentUser;
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const spinData = await getUserSpinData(user.uid);
+            const now = new Date();
+            
+            if (spinData) {
+                // Check if next spin date has passed
+                const nextSpin = new Date(spinData.nextSpinDate);
+                if (now >= nextSpin) {
+                    // Reset spins for new month
+                    const newNextSpinDate = new Date();
+                    newNextSpinDate.setMonth(newNextSpinDate.getMonth() + 1);
+                    
+                    await updateUserSpinData(user.uid, {
+                        spinsLeft: 1,
+                        lastSpinDate: null,
+                        nextSpinDate: newNextSpinDate.toISOString()
+                    });
+                    
+                    setSpinsLeft(1);
+                    setNextSpinDate(newNextSpinDate.toISOString());
+                    setHasSpun(false);
+                } else {
+                    // User hasn't spun this month or has remaining spins
+                    setSpinsLeft(spinData.spinsLeft);
+                    setNextSpinDate(spinData.nextSpinDate);
+                    setHasSpun(spinData.spinsLeft === 0);
+                }
+            } else {
+                // First time user - initialize with 1 spin
+                const nextSpinDate = new Date();
+                nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+                
+                await updateUserSpinData(user.uid, {
+                    spinsLeft: 1,
+                    lastSpinDate: null,
+                    nextSpinDate: nextSpinDate.toISOString()
+                });
+                
+                setSpinsLeft(1);
+                setNextSpinDate(nextSpinDate.toISOString());
+                setHasSpun(false);
+            }
+        } catch (error) {
+            console.error('Error loading spin data:', error);
+            // Fallback initialization
+            const nextSpinDate = new Date();
+            nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+            
+            setSpinsLeft(1);
+            setNextSpinDate(nextSpinDate.toISOString());
+            setHasSpun(false);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        initializeSpinData();
+    }, []);
+
+    const spinWheel = async () => {
+        // COMPLETELY DISABLE SPINNING IF USER HAS ALREADY SPUN OR NO SPINS LEFT
+        if (spinning || hasSpun || spinsLeft <= 0 || isLoading) return;
+        
+        setSpinning(true);
+        const wheel = wheelRef.current;
+        if (!wheel) return;
+
+        // Random rotation for the spin effect
+        const extraDegrees = 360 * 5; // 5 full rotations
+        const winningSegment = Math.floor(Math.random() * wheelRewards.length);
+        const segmentAngle = 360 / wheelRewards.length;
+        const winningAngle = 360 - (winningSegment * segmentAngle) - (segmentAngle / 2);
+        
+        const totalRotation = extraDegrees + winningAngle;
+        
+        // Animate the spin
+        gsap.to(wheel, {
+            rotation: totalRotation,
+            duration: 4,
+            ease: "back.out(1.7)",
+            onComplete: async () => {
+                const prize = wheelRewards[winningSegment];
+                setSpinning(false);
+                setWonPrize(prize);
+                setShowResult(true);
+                
+                // Update spin data - user gets 1 spin per month
+                const user = auth.currentUser;
+                if (user) {
+                    const nextSpinDate = new Date();
+                    nextSpinDate.setMonth(nextSpinDate.getMonth() + 1);
+                    
+                    await updateUserSpinData(user.uid, {
+                        spinsLeft: 0,
+                        lastSpinDate: new Date().toISOString(),
+                        nextSpinDate: nextSpinDate.toISOString()
+                    });
+                    
+                    setSpinsLeft(0);
+                    setNextSpinDate(nextSpinDate.toISOString());
+                    setHasSpun(true); // MARK AS SPUN - THIS IS THE KEY FIX
+                    
+                    // Call the callback to handle the prize
+                    onSpinComplete(prize);
+                }
+            }
+        });
+    };
+
+    const closeResult = () => {
+        setShowResult(false);
+        setWonPrize(null);
+    };
+
+    const formatNextSpinDate = () => {
+        if (!nextSpinDate) return '';
+        const date = new Date(nextSpinDate);
+        return date.toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    // COMPLETELY DISABLE THE SPIN BUTTON AND WHEEL IF USER HAS SPUN
+    const isSpinDisabled = spinning || hasSpun || spinsLeft <= 0 || isLoading;
+
+    if (isLoading) {
+        return (
+            <div className="group relative w-full bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg">
+                <div className="flex items-center justify-center py-12">
+                    <RefreshCw className="animate-spin text-blue-500" size={32} />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div className="group relative w-full bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-lg">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl">
+                            <Gift className="text-white" size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{t.spinTheWheel || 'Spin the Wheel'}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{t.winBoostersAndUSDT || 'Win Boosters and USDT Rewards!'}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {spinsLeft} {t.spinsLeft || 'spin left this month'}
+                        </div>
+                        {hasSpun && nextSpinDate && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {t.nextSpin || 'Next spin:'} {formatNextSpinDate()}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Wheel Container */}
+                <div className="relative flex justify-center items-center mb-6">
+                    <div className="relative w-64 h-64">
+                        {/* Wheel with overlay when disabled */}
+                        <div 
+                            ref={wheelRef}
+                            className={`w-full h-full rounded-full border-4 relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 ${
+                                hasSpun ? 'border-gray-400 dark:border-gray-500 grayscale' : 'border-gray-300 dark:border-gray-600'
+                            }`}
+                        >
+                            {wheelRewards.map((reward, index) => {
+                                const segmentAngle = 360 / wheelRewards.length;
+                                const rotation = index * segmentAngle;
+                                const IconComponent = reward.icon;
+                                
+                                return (
+                                    <div
+                                        key={reward.id}
+                                        className="absolute top-0 left-0 w-full h-full"
+                                        style={{
+                                            transform: `rotate(${rotation}deg)`,
+                                            transformOrigin: 'center'
+                                        }}
+                                    >
+                                        <div
+                                            className="absolute top-0 left-1/2 w-1/2 h-1/2 origin-bottom-left"
+                                            style={{
+                                                transform: `rotate(${segmentAngle}deg) skewY(-${90 - segmentAngle}deg)`,
+                                                background: `linear-gradient(135deg, ${reward.color.includes('from-') ? reward.color : 'from-gray-500 to-gray-600'})`,
+                                                opacity: hasSpun ? 0.5 : 1
+                                            }}
+                                        >
+                                            <div className="absolute top-4 left-4 transform -rotate-45 text-white">
+                                                <IconComponent size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            
+                            {/* Center Circle */}
+                            <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full border-4 z-10 flex items-center justify-center ${
+                                hasSpun ? 'bg-gray-300 dark:bg-gray-600 border-gray-400 dark:border-gray-500' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+                            }`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                    hasSpun 
+                                        ? 'bg-gradient-to-r from-gray-400 to-gray-500' 
+                                        : 'bg-gradient-to-r from-purple-500 to-pink-500'
+                                }`}>
+                                    {hasSpun ? (
+                                        <Lock className="text-white" size={16} />
+                                    ) : (
+                                        <Gift className="text-white" size={16} />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Disabled Overlay */}
+                            {hasSpun && (
+                                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center z-20">
+                                    <div className="text-center text-white">
+                                        <Lock size={32} className="mx-auto mb-2" />
+                                        <p className="text-sm font-semibold">Spin Used</p>
+                                        <p className="text-xs">Come back next month</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Pointer */}
+                        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1 w-6 h-8 z-20">
+                            <div className={`w-0 h-0 border-l-8 border-r-8 border-b-12 border-l-transparent border-r-transparent ${
+                                hasSpun ? 'border-b-gray-400' : 'border-b-red-500'
+                            }`}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Spin Button - COMPLETELY DISABLED AFTER SPIN */}
+                <button
+                    onClick={spinWheel}
+                    disabled={isSpinDisabled}
+                    className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-all duration-300 transform ${
+                        isSpinDisabled
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 hover:scale-105'
+                    }`}
+                >
+                    {spinning ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <RefreshCw className="animate-spin" size={20} />
+                            {t.spinning || 'Spinning...'}
+                        </div>
+                    ) : hasSpun ? (
+                        <div className="flex items-center justify-center gap-2">
+                            <Lock size={20} />
+                            {t.spinUsed || 'Spin Used - Come Back Next Month'}
+                        </div>
+                    ) : spinsLeft <= 0 ? (
+                        t.noSpinsLeft || 'Come back next month!'
+                    ) : (
+                        t.spinNow || 'SPIN NOW!'
+                    )}
+                </button>
+
+                {/* Rewards List */}
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                    {wheelRewards.slice(0, 4).map((reward) => {
+                        const IconComponent = reward.icon;
+                        return (
+                            <div key={reward.id} className={`flex items-center gap-2 p-2 rounded-lg ${
+                                hasSpun ? 'bg-gray-300/50 dark:bg-gray-600/50' : 'bg-white/50 dark:bg-gray-700/50'
+                            }`}>
+                                <div className={`p-1 rounded-lg bg-gradient-to-r ${reward.color} ${
+                                    hasSpun ? 'opacity-50' : ''
+                                }`}>
+                                    <IconComponent className="text-white" size={12} />
+                                </div>
+                                <span className={`text-xs font-medium ${
+                                    hasSpun ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'
+                                }`}>
+                                    {reward.name}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Spin Info */}
+                {hasSpun && (
+                    <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                        <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+                            <Lock size={16} />
+                            <span className="text-sm font-medium">
+                                {t.spinUsedThisMonth || 'You have used your spin for this month. Come back next month for another chance!'}
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Result Modal */}
+            {showResult && wonPrize && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-sm border border-gray-200 dark:border-gray-700 shadow-2xl text-center">
+                        <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-600 rounded-full mx-auto flex items-center justify-center mb-4">
+                            <Gift className="text-white" size={32} />
+                        </div>
+                        
+                        <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                            {t.congratulations || 'Congratulations!'}
+                        </h3>
+                        
+                        <p className="text-gray-600 dark:text-gray-300 mb-4">
+                            {t.youWon || 'You won:'}
+                        </p>
+                        
+                        <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-lg mb-6">
+                            <div className="flex items-center justify-center gap-3">
+                                <wonPrize.icon className="text-white" size={24} />
+                                <div className="text-white text-left">
+                                    <div className="font-bold text-lg">{wonPrize.name}</div>
+                                    <div className="text-sm opacity-90">{wonPrize.value}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-4">
+                            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                                <Lock size={16} />
+                                <span className="text-sm">
+                                    {t.spinLockedUntil || 'Your next free spin will be available on'} {formatNextSpinDate()}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={closeResult}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors"
+                        >
+                            {t.claimReward || 'Claim Reward'}
+                        </button>
+                        
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                            {t.rewardAutoCredited || 'Reward will be automatically credited to your account'}
+                        </p>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
 
 const WithdrawalTicker: React.FC = () => {
     const { t } = useLanguage();
@@ -682,7 +1080,7 @@ const Overview: React.FC = () => {
         });
 
         const totalChange = recentTransactions.reduce((total, transaction) => {
-            if (transaction.type === 'received' || transaction.type === 'bonus' || transaction.type === 'mined') {
+            if (transaction.type === 'received' || transaction.type === 'bonus' || transaction.type === 'mined' || transaction.type === 'spin') {
                 return total + (transaction.amountUsd || 0);
             } else if (transaction.type === 'sent') {
                 return total - (transaction.amountUsd || 0);
@@ -720,7 +1118,7 @@ const Overview: React.FC = () => {
         });
 
         const btcChange = bitcoinTransactions.reduce((total, transaction) => {
-            if (transaction.type === 'received' || transaction.type === 'bonus' || transaction.type === 'mined') {
+            if (transaction.type === 'received' || transaction.type === 'bonus' || transaction.type === 'mined' || transaction.type === 'spin') {
                 return total + (transaction.amount || 0);
             } else if (transaction.type === 'sent') {
                 return total - (transaction.amount || 0);
@@ -832,6 +1230,44 @@ const Overview: React.FC = () => {
         }
     };
 
+    // Handle spin completion
+    const handleSpinComplete = async (prize: any) => {
+        if (!user) return;
+
+        // Add transaction for spin reward
+        const transaction: Transaction = {
+            id: `spin-${Date.now()}`,
+            type: 'spin',
+            coinName: prize.type === 'usdt' ? 'USDT' : 'Booster',
+            amount: prize.usdValue || 0,
+            amountUsd: prize.usdValue || 0,
+            currency: prize.type === 'usdt' ? 'USDT' : 'BOOST',
+            description: `Won ${prize.name} from Spin Wheel`,
+            status: 'completed',
+            timestamp: new Date()
+        };
+
+        await addTransaction(user.uid, transaction);
+
+        // Update local balance if it's a USDT prize
+        if (prize.usdValue > 0) {
+            setUserData(prev => ({
+                ...prev,
+                balance: prev.balance + prize.usdValue
+            }));
+        }
+
+        // Refresh transactions
+        const updatedData = await subscribeToUserData(user.uid, (data) => {
+            if (data) {
+                setUserData(prev => ({
+                    ...prev,
+                    transactions: data.transactions || []
+                }));
+            }
+        });
+    };
+
     // AI Trading Handlers
     const handleAIAnalyze = (coin: AITradingCard) => {
         setSelectedAICoin(coin);
@@ -902,6 +1338,15 @@ const Overview: React.FC = () => {
                 return '$50.00';
             }
             
+            if (transaction.type === 'spin') {
+                // For spin rewards
+                if (transaction.amountUsd && transaction.amountUsd > 0) {
+                    return `+$${transaction.amountUsd.toFixed(2)} USDT`;
+                } else {
+                    return `+${transaction.description?.split(' ')[1] || 'Booster'}`;
+                }
+            }
+            
             const amount = transaction.amount || 0;
             const currency = transaction.currency || 'USD';
             
@@ -954,6 +1399,8 @@ const Overview: React.FC = () => {
                 return <Zap className="text-orange-400" size={16} />;
             case 'bonus':
                 return <Gift className="text-purple-400" size={16} />;
+            case 'spin':
+                return <Gift className="text-pink-400" size={16} />;
             case 'swapped':
                 return <RefreshCw className="text-blue-400" size={16} />;
             default:
@@ -971,6 +1418,8 @@ const Overview: React.FC = () => {
                 return `${t.mined || 'Mined'} ${transaction.coinName || t.crypto || 'Crypto'}`;
             case 'bonus':
                 return t.welcomeBonus || 'Welcome Bonus';
+            case 'spin':
+                return transaction.description || t.spinReward || 'Spin Wheel Reward';
             case 'swapped':
                 return t.swapped || 'Swapped';
             default:
@@ -983,6 +1432,7 @@ const Overview: React.FC = () => {
             case 'received':
             case 'bonus':
             case 'mined':
+            case 'spin':
                 return 'text-green-500 dark:text-green-400';
             case 'sent':
                 return 'text-red-500 dark:text-red-400';
@@ -996,6 +1446,7 @@ const Overview: React.FC = () => {
             case 'received':
             case 'bonus':
             case 'mined':
+            case 'spin':
                 return '+';
             case 'sent':
                 return '-';
@@ -1053,7 +1504,10 @@ const Overview: React.FC = () => {
                 />
             </div>
 
-            {/* AI Trading Section */}
+            {/* Spin Wheel Section - Now directly under stats */}
+            <SpinWheel onSpinComplete={handleSpinComplete} />
+
+            {/* AI Trading Section - Now under spin wheel */}
             <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -1240,6 +1694,7 @@ const Overview: React.FC = () => {
     );
 };
 
+// The rest of your components remain the same...
 interface StatCardProps {
     icon: React.ElementType;
     title: string;
