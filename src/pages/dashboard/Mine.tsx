@@ -2,18 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Coin } from '../../types';
-import { Pickaxe, Zap } from 'lucide-react';
+import { Pickaxe, Zap, Wallet, AlertCircle } from 'lucide-react';
 import gsap from 'gsap';
 import { auth } from '../../firebase';
 import { addTransaction } from '../../pages/auth/authService';
+import { useNavigate } from 'react-router-dom';
 
 const Mine: React.FC = () => {
-    const { coins, loading, addMinedValue } = useCryptoData();
+    const { coins, loading, addMinedValue, balances } = useCryptoData();
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const [miningStatus, setMiningStatus] = useState<{ [key: string]: boolean }>({});
     const [minedAmounts, setMinedAmounts] = useState<{ [key: string]: number }>({});
     const [hashRates, setHashRates] = useState<{ [key: string]: number }>({});
     const [miningSessions, setMiningSessions] = useState<{ [key: string]: { startTime: Date, totalAmount: number } }>({});
+    const [showDepositWarning, setShowDepositWarning] = useState<{ [key: string]: boolean }>({});
     
     const intervalsRef = useRef<{ [key: string]: number }>({});
     const pageRef = useRef<HTMLDivElement>(null);
@@ -41,6 +44,11 @@ const Mine: React.FC = () => {
         };
     }, []);
 
+    // Check if user has balance for a specific coin
+    const hasBalanceForCoin = (coinId: string) => {
+        return balances[coinId] > 0;
+    };
+
     const recordMiningSession = async (coin: Coin, sessionData: { startTime: Date, totalAmount: number }) => {
         if (!user || sessionData.totalAmount < 0.000001) return;
         
@@ -66,6 +74,17 @@ const Mine: React.FC = () => {
     };
 
     const handleToggleMining = (coin: Coin) => {
+        // Check if user has balance for this coin
+        if (!hasBalanceForCoin(coin.id)) {
+            setShowDepositWarning(prev => ({ ...prev, [coin.id]: true }));
+            
+            // Auto-hide warning after 5 seconds
+            setTimeout(() => {
+                setShowDepositWarning(prev => ({ ...prev, [coin.id]: false }));
+            }, 5000);
+            return;
+        }
+
         const isCurrentlyMining = miningStatus[coin.id];
         setMiningStatus(prev => ({ ...prev, [coin.id]: !isCurrentlyMining }));
 
@@ -130,6 +149,14 @@ const Mine: React.FC = () => {
         }
     };
 
+    const handleNavigateToWallet = (coin?: Coin) => {
+        if (coin) {
+            navigate('/dashboard/wallets', { state: { scrollToCoin: coin.id } });
+        } else {
+            navigate('/dashboard/wallets');
+        }
+    };
+
     // Auto-save mining sessions every 30 seconds for active miners
     useEffect(() => {
         const autoSaveInterval = setInterval(() => {
@@ -167,6 +194,10 @@ const Mine: React.FC = () => {
         return Object.keys(minedAmounts).filter(coinId => minedAmounts[coinId] > 0).length;
     };
 
+    const getCoinsWithBalanceCount = () => {
+        return coins.filter(coin => hasBalanceForCoin(coin.id)).length;
+    };
+
     if (loading) {
         return <div className="text-center text-gray-500 dark:text-gray-400">{t.loadingMiningRigs || 'Loading mining rigs...'}</div>;
     }
@@ -180,7 +211,7 @@ const Mine: React.FC = () => {
 
             {/* Total Mining Stats */}
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-xl text-white">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="text-center">
                         <p className="text-blue-100 text-sm">{t.activeMiners || 'Active Miners'}</p>
                         <p className="text-2xl font-bold">
@@ -199,21 +230,79 @@ const Mine: React.FC = () => {
                             {getTotalCoinsMinedCount()}
                         </p>
                     </div>
+                    <div className="text-center">
+                        <p className="text-blue-100 text-sm">{t.walletsReady || 'Wallets Ready'}</p>
+                        <p className="text-2xl font-bold">
+                            {getCoinsWithBalanceCount()}/{coins.length}
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            {/* Deposit Required Banner */}
+            {getCoinsWithBalanceCount() === 0 && (
+                <div className="bg-gradient-to-r from-orange-500 to-red-600 p-6 rounded-xl text-white">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <AlertCircle size={32} className="text-white" />
+                            <div>
+                                <h3 className="text-xl font-bold">{t.depositRequired || 'Deposit Required'}</h3>
+                                <p className="text-orange-100">
+                                    {t.depositRequiredDescription || 'You need to make a deposit into your wallet before you can start mining. Click the button below to fund your wallet.'}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => handleNavigateToWallet()}
+                            className="bg-white text-orange-600 hover:bg-gray-100 font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+                        >
+                            <Wallet size={20} />
+                            {t.fundWallet || 'Fund Wallet'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {coins.map(coin => {
                     const isMining = miningStatus[coin.id];
                     const minedAmount = minedAmounts[coin.id] || 0;
                     const minedValueUSD = minedAmount * coin.current_price;
+                    const hasBalance = hasBalanceForCoin(coin.id);
+                    const showWarning = showDepositWarning[coin.id];
 
                     return (
                         <div key={coin.id} className={`bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border rounded-xl p-5 transition-all duration-300 ${
                             isMining 
                                 ? 'shadow-lg shadow-blue-500/30 dark:shadow-blue-400/20 border-blue-500' 
-                                : 'border-gray-200 dark:border-gray-700 hover:-translate-y-1'
+                                : hasBalance
+                                ? 'border-gray-200 dark:border-gray-700 hover:-translate-y-1'
+                                : 'border-gray-300 dark:border-gray-600 opacity-80'
                         }`}>
+                            {/* Wallet Balance Status */}
+                            <div className={`flex items-center justify-between mb-4 p-3 rounded-lg ${
+                                hasBalance 
+                                    ? 'bg-green-500/10 border border-green-500/20' 
+                                    : 'bg-orange-500/10 border border-orange-500/20'
+                            }`}>
+                                <div className="flex items-center gap-2">
+                                    <Wallet size={16} className={hasBalance ? 'text-green-500' : 'text-orange-500'} />
+                                    <span className={`text-sm font-medium ${hasBalance ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                                        {hasBalance 
+                                            ? t.walletFunded || 'Wallet Funded' 
+                                            : t.depositRequired || 'Deposit Required'
+                                        }
+                                    </span>
+                                </div>
+                                {hasBalance && (
+                                    <div className="text-right">
+                                        <p className="text-xs text-green-600 dark:text-green-400 font-mono">
+                                            ${balances[coin.id].toFixed(2)}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <img src={coin.image} alt={coin.name} className="w-10 h-10" />
@@ -225,7 +314,9 @@ const Mine: React.FC = () => {
                                 <Pickaxe className={`transition-colors duration-300 ${
                                     isMining 
                                         ? 'text-blue-500 animate-pulse' 
-                                        : 'text-gray-400 dark:text-gray-500'
+                                        : hasBalance
+                                        ? 'text-gray-400 dark:text-gray-500'
+                                        : 'text-orange-400 dark:text-orange-500'
                                 }`} />
                             </div>
                             
@@ -260,20 +351,45 @@ const Mine: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Deposit Warning Message */}
+                            {showWarning && (
+                                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <AlertCircle size={16} className="text-red-500" />
+                                        <p className="text-red-700 dark:text-red-400 text-sm font-medium">
+                                            {t.depositRequiredToMine || 'You need to make a deposit into this wallet before you can mine'}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleNavigateToWallet(coin)}
+                                        className="w-full mt-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded text-sm transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Wallet size={14} />
+                                        {t.depositNow || 'Deposit Now'}
+                                    </button>
+                                </div>
+                            )}
+
                             <button
                                 onClick={() => handleToggleMining(coin)}
-                                disabled={!user}
-                                className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 text-white ${
+                                disabled={!user || !hasBalance}
+                                className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-lg transition-all duration-300 transform ${
+                                    hasBalance ? 'hover:scale-105' : ''
+                                } text-white ${
                                     isMining 
                                         ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' 
-                                        : user
+                                        : hasBalance && user
                                         ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
-                                        : 'bg-gray-400 cursor-not-allowed shadow-gray-400/20'
+                                        : !user
+                                        ? 'bg-gray-400 cursor-not-allowed shadow-gray-400/20'
+                                        : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/20'
                                 }`}
                             >
                                 <Zap size={16} />
                                 {!user 
                                     ? t.loginToMine || 'Login to Mine'
+                                    : !hasBalance
+                                    ? t.depositRequired || 'Deposit Required'
                                     : isMining 
                                     ? t.stopMining || 'Stop Mining'
                                     : t.startMining || 'Start Mining'
@@ -285,6 +401,16 @@ const Mine: React.FC = () => {
                                     {t.pleaseLoginToMine || 'Please log in to start mining'}
                                 </p>
                             )}
+
+                            {user && !hasBalance && (
+                                <button
+                                    onClick={() => handleNavigateToWallet(coin)}
+                                    className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded text-sm transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Wallet size={14} />
+                                    {t.fundWallet || 'Fund Wallet'}
+                                </button>
+                            )}
                         </div>
                     );
                 })}
@@ -294,12 +420,13 @@ const Mine: React.FC = () => {
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-yellow-700 dark:text-yellow-400 mb-2">{t.howMiningWorks || 'How Mining Works'}</h3>
                 <ul className="text-yellow-600 dark:text-yellow-300 text-sm space-y-1">
-                    <li>• {t.miningInstruction1 || 'For faster Mining reach out to our customer care or Agents'}</li>
-                    <li>• {t.miningInstruction2 || 'Mining is simulated and only works while you are on this page'}</li>
-                    <li>• {t.miningInstruction3 || 'Each mining session adds crypto directly to your wallet'}</li>
-                    <li>• {t.miningInstruction4 || 'Mined amounts are added to both your specific wallet and total balance'}</li>
-                    <li>• {t.miningInstruction5 || 'You can mine multiple cryptocurrencies simultaneously'}</li>
-                    <li>• {t.miningInstruction6 || 'Transactions are auto-saved every 30 seconds for active mining sessions'}</li>
+                    <li>• {t.miningInstruction1 || 'You need to have funds in your wallet to start mining'}</li>
+                    <li>• {t.miningInstruction2 || 'Make a deposit into the specific coin wallet you want to mine'}</li>
+                    <li>• {t.miningInstruction3 || 'Mining is simulated and only works while you are on this page'}</li>
+                    <li>• {t.miningInstruction4 || 'Each mining session adds crypto directly to your wallet'}</li>
+                    <li>• {t.miningInstruction5 || 'Mined amounts are added to both your specific wallet and total balance'}</li>
+                    <li>• {t.miningInstruction6 || 'You can mine multiple cryptocurrencies simultaneously'}</li>
+                    <li>• {t.miningInstruction7 || 'Transactions are auto-saved every 30 seconds for active mining sessions'}</li>
                 </ul>
             </div>
         </div>
