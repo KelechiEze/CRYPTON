@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, DollarSign, Bitcoin, Zap, BarChart, ShieldCheck, Gift, CheckCircle, X, ArrowUp, ArrowDown, RefreshCw, TrendingUp as TrendingUpIcon, Brain, AlertTriangle, Play, Pause, Wallet } from 'lucide-react';
 import gsap from 'gsap';
-import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
+// import { claimBonus, hasClaimedBonus, subscribeToUserData } from '../../pages/auth/authService';
 import { auth } from '../../firebase';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -572,7 +572,7 @@ const Overview: React.FC = () => {
     const overviewRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const { t } = useLanguage();
-    const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+    // const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
     const [selectedAICoin, setSelectedAICoin] = useState<AITradingCard | null>(null);
     const [activationSuccessCoin, setActivationSuccessCoin] = useState<AITradingCard | null>(null);
     const { coins, balances } = useCryptoData();
@@ -586,8 +586,8 @@ const Overview: React.FC = () => {
         transactions: [] as Transaction[]
     });
     const [user, setUser] = useState<any>(null);
-    const [hasClaimed, setHasClaimed] = useState(false);
-    const [isClaiming, setIsClaiming] = useState(false);
+    // const [hasClaimed, setHasClaimed] = useState(false);
+    // const [isClaiming, setIsClaiming] = useState(false);
     const [aiTradingCoins, setAITradingCoins] = useState<AITradingCard[]>([]);
 
     // Generate AI trading cards from available coins
@@ -744,30 +744,32 @@ const Overview: React.FC = () => {
         setUser(currentUser);
 
         if (currentUser) {
-            const checkBonusClaim = async () => {
-                const claimed = await hasClaimedBonus(currentUser.uid);
-                setHasClaimed(claimed);
-            };
-            checkBonusClaim();
+            // Commented out bonus claim functionality
+            // const checkBonusClaim = async () => {
+            //     const claimed = await hasClaimedBonus(currentUser.uid);
+            //     setHasClaimed(claimed);
+            // };
+            // checkBonusClaim();
 
-            const unsubscribe = subscribeToUserData(currentUser.uid, (data) => {
-                if (data) {
-                    setUserData({
-                        balance: calculateTotalBalance(),
-                        bitcoinBalance: calculateBitcoinBalance(),
-                        portfolioChange: data.portfolioChange || 0,
-                        topGainer: data.topGainer || 'Bitcoin',
-                        mostTraded: data.mostTraded || 'Ethereum',
-                        transactions: data.transactions || []
-                    });
+            // Commented out user data subscription
+            // const unsubscribe = subscribeToUserData(currentUser.uid, (data) => {
+            //     if (data) {
+            //         setUserData({
+            //             balance: calculateTotalBalance(),
+            //             bitcoinBalance: calculateBitcoinBalance(),
+            //             portfolioChange: data.portfolioChange || 0,
+            //             topGainer: data.topGainer || 'Bitcoin',
+            //             mostTraded: data.mostTraded || 'Ethereum',
+            //             transactions: data.transactions || []
+            //         });
                     
-                    if (data.hasClaimedWelcomeBonus !== undefined) {
-                        setHasClaimed(data.hasClaimedWelcomeBonus);
-                    }
-                }
-            });
+            //         if (data.hasClaimedWelcomeBonus !== undefined) {
+            //             setHasClaimed(data.hasClaimedWelcomeBonus);
+            //         }
+            //     }
+            // });
 
-            return () => unsubscribe();
+            // return () => unsubscribe();
         }
     }, [balances, coins]);
 
@@ -789,6 +791,8 @@ const Overview: React.FC = () => {
         );
     }, []);
 
+    // Commented out handleClaimBonus function
+    /*
     const handleClaimBonus = async () => {
         if (!user) return;
         
@@ -831,6 +835,7 @@ const Overview: React.FC = () => {
             setIsClaiming(false);
         }
     };
+    */
 
     // AI Trading Handlers
     const handleAIAnalyze = (coin: AITradingCard) => {
@@ -1180,7 +1185,8 @@ const Overview: React.FC = () => {
                 </div>
             </div>
 
-            {/* New Referral Banner */}
+            {/* Commented out Referral Banner */}
+            {/*
             <div className={`p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg ${
                 hasClaimed 
                     ? 'bg-gradient-to-r from-gray-500 to-gray-600 shadow-gray-500/20' 
@@ -1217,6 +1223,7 @@ const Overview: React.FC = () => {
                     }
                 </button>
             </div>
+            */}
 
             {/* AI Trading Modal */}
             {selectedAICoin && (
@@ -1235,7 +1242,8 @@ const Overview: React.FC = () => {
                     onNavigateToWallet={handleNavigateToWallet}
                 />
             )}
-            {isClaimModalOpen && <ClaimSuccessModal onClose={() => setIsClaimModalOpen(false)} />}
+            {/* Commented out Claim Success Modal */}
+            {/* {isClaimModalOpen && <ClaimSuccessModal onClose={() => setIsClaimModalOpen(false)} />} */}
         </div>
     );
 };
@@ -1284,6 +1292,8 @@ const SmallAdCard: React.FC<SmallAdCardProps> = ({ icon: Icon, title, descriptio
     </div>
 );
 
+// Commented out ClaimSuccessModal component
+/*
 const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const { t } = useLanguage();
     const modalRef = useRef<HTMLDivElement>(null);
@@ -1352,5 +1362,6 @@ const ClaimSuccessModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
     );
 };
+*/
 
 export default Overview;
