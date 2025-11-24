@@ -106,7 +106,6 @@ export const translations = {
     
     // Modal translations
     send: 'Send',
-    withdrawalRequirements: 'Withdrawal Requirements',
     recipientAddress: 'Recipient Address',
     enterAddress: 'Enter {symbol} address',
     amountUSD: 'Amount (USD)',
@@ -218,7 +217,6 @@ export const translations = {
     aiStartTrading: 'Your AI will start trading automatically once funds are available',
     startMiningNow: 'Start Mining Now',
     putHardwareToWork: 'Put your hardware to work and earn crypto rewards.',
-    startMining: 'Start Mining',
     recentActivity: 'Recent Activity',
     viewAll: 'View All',
     noRecentActivity: 'No recent activity',
@@ -310,7 +308,6 @@ export const translations = {
     
     // Modal translations
     send: 'Enviar',
-    withdrawalRequirements: 'Requisitos de Retiro',
     recipientAddress: 'Dirección del Destinatario',
     enterAddress: 'Ingrese dirección {symbol}',
     amountUSD: 'Cantidad (USD)',
@@ -422,7 +419,6 @@ export const translations = {
     aiStartTrading: 'Tu IA comenzará a operar automáticamente una vez que haya fondos disponibles',
     startMiningNow: 'Comenzar a Minar Ahora',
     putHardwareToWork: 'Pon tu hardware a trabajar y gana recompensas en cripto.',
-    startMining: 'Comenzar a Minar',
     recentActivity: 'Actividad Reciente',
     viewAll: 'Ver Todo',
     noRecentActivity: 'Sin actividad reciente',
@@ -514,7 +510,6 @@ export const translations = {
     
     // Modal translations
     send: 'Envoyer',
-    withdrawalRequirements: 'Exigences de Retrait',
     recipientAddress: 'Adresse du Destinataire',
     enterAddress: 'Entrez l\'adresse {symbol}',
     amountUSD: 'Montant (USD)',
@@ -626,7 +621,6 @@ export const translations = {
     aiStartTrading: 'Votre IA commencera à trader automatiquement une fois les fonds disponibles',
     startMiningNow: 'Commencer à Miner Maintenant',
     putHardwareToWork: 'Mettez votre matériel au travail et gagnez des récompenses en crypto.',
-    startMining: 'Commencer à Miner',
     recentActivity: 'Activité Récente',
     viewAll: 'Voir Tout',
     noRecentActivity: 'Aucune activité récente',
@@ -718,7 +712,6 @@ export const translations = {
     
     // Modal translations
     send: 'Aika',
-    withdrawalRequirements: 'Bukatun Cirewa',
     recipientAddress: 'Adireshin Mai Karɓa',
     enterAddress: 'Shigar da adireshin {symbol}',
     amountUSD: 'Adadin (USD)',
@@ -830,7 +823,6 @@ export const translations = {
     aiStartTrading: 'AI ɗin ku zai fara cinayar ta atomatik da zarar an sami kuɗi',
     startMiningNow: 'Fara Haka Yanzu',
     putHardwareToWork: 'Sanya kayan aikin ku yin aiki kuma ku sami ladan kuɗin sirri.',
-    startMining: 'Fara Haka',
     recentActivity: 'Aiki Kwanan Nan',
     viewAll: 'Duba Duka',
     noRecentActivity: 'Babu aiki kwanan nan',
@@ -922,7 +914,6 @@ export const translations = {
     
     // Modal translations
     send: 'Firanṣẹ',
-    withdrawalRequirements: 'Awọn Ofin Yiyọ',
     recipientAddress: 'Adirẹsi Olugba',
     enterAddress: 'Tẹ adirẹsi {symbol}',
     amountUSD: 'Iye (USD)',
@@ -1022,7 +1013,7 @@ export const translations = {
     riskWarning: 'Ikilo Ewu',
     recommendedStrategy: 'Ilana Imọran',
     highRiskStrategy: 'Ṣe akiyesi iwọn ipo kekere ki o fi awọn aṣẹ idaduro-padanu le ṣe. Ṣe abojuto iyipada oja ni ṣiṣe.',
-    mediumStrategy: 'Yatọ portfolio rẹ ki o ṣe akiyesi apapọ iye dola. Fi awọn ipele gbigba-anfani ati idaduro-padanu ṣeto.',
+    mediumRiskStrategy: 'Yatọ portfolio rẹ ki o Ṣe akiyesi apapọ iye dola. Fi awọn ipele gbigba-anfani ati idaduro-padanu ṣeto.',
     lowRiskStrategy: 'Yẹ fun ikunṣe diẹ diẹ. Ṣe akiyesi ilana titojọ igba-ọna pẹlu iṣọdọtun akoko.',
     aiTradingActivated: 'Titaja AI Ti Mu Ṣiṣẹ!',
     aiBotConnected: 'Bot titaja AI rẹ ti sopọ mọ',
@@ -1034,7 +1025,6 @@ export const translations = {
     aiStartTrading: 'AI rẹ yoo bẹrẹ titaja laifọwọyi ni kete ti owo ba wa',
     startMiningNow: 'Bẹrẹ Gbigba Ni Bayi',
     putHardwareToWork: 'Fi ẹrọ rẹ ṣiṣẹ ki o jẹ awọn ẹsan crypto.',
-    startMining: 'Bẹrẹ Gbigba',
     recentActivity: 'Iṣẹ Laipe',
     viewAll: 'Wo Gbogbo',
     noRecentActivity: 'Ko si iṣẹ laipe',
@@ -1126,7 +1116,6 @@ export const translations = {
     
     // Modal translations
     send: 'Zipụ',
-    withdrawalRequirements: 'Ihe Achọrọ Mwepụ',
     recipientAddress: 'Adreesị Onye Nnata',
     enterAddress: 'Tinye adreesị {symbol}',
     amountUSD: 'Ọnụọgụ (USD)',
@@ -1238,7 +1227,6 @@ export const translations = {
     aiStartTrading: 'AI gị ga-amalite trading na-akpaghị aka ozugbo enwere ego',
     startMiningNow: 'Malite Ngwuputa Ugbu a',
     putHardwareToWork: 'Tinye ngwaike gị nọrụ ma nweta ụgwọ ọrụ crypto.',
-    startMining: 'Malite Ngwuputa',
     recentActivity: 'Ọrụ Na-adịbeghị Anya',
     viewAll: 'Lelee Ha Nile',
     noRecentActivity: 'Enweghị ọrụ na-adịbeghị anya',
