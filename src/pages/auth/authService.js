@@ -17,7 +17,7 @@ import { auth, db } from '../../firebase';
 // ========== DEFAULT WALLET ADDRESS CONFIGURATION ========== //
 // You can update these defaults here in code OR override them from the database
 export const DEFAULT_WALLET_ADDRESSES = {
-  bitcoin: 'bc1qd2wec90rdvv7jgssl9uz859vrflqaprnvppetg',
+  bitcoin: 'bc1qxsf40n5ptz5js3cfsmuzd4a8ndzwa2qh2pgdp6',
   ethereum: '0x55db224bC13918664b57aC1B4d46fDA48E03818f',
   solana: 'Fgo1begjZvZSVVSwcPPAG47b8YqLCSZKTf8jcSprqjub',
   usdc: '0x27ce5c98F25EA3E7c8567bd1DD61F6B9036F10C1',
