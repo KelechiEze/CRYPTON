@@ -34,11 +34,11 @@ const Mine: React.FC = () => {
     };
 
     const handleUnlockMining = () => {
-        setIsModalOpen(true);
+        handleMakeDeposit();
     };
 
     const handleRestoreFunds = () => {
-        setIsModalOpen(true);
+        handleMakeDeposit();
     };
 
     const closeModal = () => {
@@ -191,7 +191,7 @@ const Mine: React.FC = () => {
                         <h3 className="text-xl font-bold mb-4 text-white">
                             {t.accountStatus || 'Account Status Overview'}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-c3 gap-6 text-center">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
                             <div className="space-y-2">
                                 <Unlock size={32} className="mx-auto text-orange-200" />
                                 <p className="text-orange-100 text-sm">Mining Access</p>
