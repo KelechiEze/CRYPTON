@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Coin } from '../../types';
-import { ArrowUpRight, ArrowDownRight, Send, Download, X, CopyCheck, CheckCircle, MessageCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Send, Download, X, CopyCheck, CheckCircle, MessageCircle, Search, Plus, Loader2 } from 'lucide-react';
 import gsap from 'gsap';
 import { useCryptoData } from '../../contexts/CryptoDataContext';
 import { auth } from '../../firebase';
-import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress, isAdminUser } from '../../pages/auth/authService';
+import { getUserWalletAddresses, updateUserWalletAddress, generateNewWalletAddress, isAdminUser, initializeWalletAddresses } from '../../pages/auth/authService';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { searchCryptoAssets, addAssetToUserWallets } from '../../pages/auth/assetSearchService';
 
 // Mock function for getUserData - you'll need to implement this based on your backend
 const getUserData = async (userId: string) => {
@@ -22,15 +23,23 @@ const Wallets: React.FC = () => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState<'Send' | 'Receive' | 'WithdrawalInfo' | null>(null);
     const [selectedCoin, setSelectedCoin] = useState<Coin | null>(null);
-    const [notification, setNotification] = useState({ show: false, message: '', type: 'copy' as 'copy' | 'send' });
+    const [notification, setNotification] = useState({ show: false, message: '', type: 'copy' as 'copy' | 'send' | 'add' });
     const [walletAddresses, setWalletAddresses] = useState<{[key: string]: string}>({});
     const [user, setUser] = useState<any>(null);
     const [isGeneratingAddress, setIsGeneratingAddress] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [userData, setUserData] = useState<any>(null);
-    const [isSending, setIsSending] = useState(false); // New state for send loading
+    const [isSending, setIsSending] = useState(false);
+    
+    // Search functionality states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<Coin[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showSearchResults, setShowSearchResults] = useState(false);
+    const [addingAsset, setAddingAsset] = useState<string | null>(null);
 
     const walletRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const currentUser = auth.currentUser;
@@ -67,16 +76,75 @@ const Wallets: React.FC = () => {
         }
     }, [loading]);
 
+    // Search handler with debounce
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchQuery.trim().length >= 2) {
+                setIsSearching(true);
+                try {
+                    const results = await searchCryptoAssets(searchQuery);
+                    
+                    // Filter out assets already in wallet
+                    const filteredResults = results.filter(coin => 
+                        !coins.some(walletCoin => walletCoin.id === coin.id)
+                    );
+                    
+                    setSearchResults(filteredResults);
+                    setShowSearchResults(true);
+                } catch (error) {
+                    console.error('Error searching assets:', error);
+                    showTempNotification(t.errorSearchingAssets || 'Error searching assets', 'copy');
+                } finally {
+                    setIsSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+                setShowSearchResults(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, coins, t]);
+
+    // Close search results when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+                setShowSearchResults(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Get coins not in wallet for suggestions
+    const availableCoins = useMemo(() => {
+        // This would come from a broader list of available cryptocurrencies
+        // For now, we'll show some popular ones not in wallet
+        const popularCoins = [
+            { id: 'matic-network', name: 'Polygon', symbol: 'matic' },
+            { id: 'chainlink', name: 'Chainlink', symbol: 'link' },
+            { id: 'polkadot', name: 'Polkadot', symbol: 'dot' },
+            { id: 'stellar', name: 'Stellar', symbol: 'xlm' },
+            { id: 'uniswap', name: 'Uniswap', symbol: 'uni' },
+            { id: 'cosmos', name: 'Cosmos', symbol: 'atom' },
+            { id: 'monero', name: 'Monero', symbol: 'xmr' },
+            { id: 'theta-network', name: 'Theta Network', symbol: 'theta' },
+        ];
+        
+        return popularCoins.filter(popularCoin => 
+            !coins.some(walletCoin => walletCoin.id === popularCoin.id)
+        );
+    }, [coins]);
+
     // Check if user can withdraw
     const canWithdraw = (): boolean => {
         if (isAdmin) return true;
         
         if (!userData) return false;
         
-        // Check if user has minimum balance of $6000
         const hasMinimumBalance = userData.balance >= 6000;
-        
-        // Check if user has made any deposits (received, bonus, mined transactions)
         const hasDeposits = userData.transactions && userData.transactions.some((tx: any) => 
             ['received', 'bonus', 'mined', 'deposit'].includes(tx.type)
         );
@@ -113,7 +181,7 @@ const Wallets: React.FC = () => {
         };
     };
     
-    const showTempNotification = (message: string, type: 'copy' | 'send') => {
+    const showTempNotification = (message: string, type: 'copy' | 'send' | 'add') => {
         setNotification({ show: true, message, type });
         setTimeout(() => {
             setNotification({ show: false, message: '', type });
@@ -139,7 +207,6 @@ const Wallets: React.FC = () => {
         setSelectedCoin(coin);
         setModalType('Receive');
         
-        // Generate or fetch address for this coin if it doesn't exist
         if (!walletAddresses[coin.id] && user) {
             setIsGeneratingAddress(true);
             try {
@@ -165,26 +232,24 @@ const Wallets: React.FC = () => {
         setSelectedCoin(null);
         setModalType(null);
         setIsGeneratingAddress(false);
-        setIsSending(false); // Reset sending state when modal closes
+        setIsSending(false);
     };
 
     const handleConfirmSend = async (coinId: string, amount: number, price: number, recipientAddress: string) => {
-        setIsSending(true); // Activate spinner
+        setIsSending(true);
         
         try {
-            // Simulate API call delay (replace with your actual API call)
             await new Promise(resolve => setTimeout(resolve, 2000));
             
             const amountUsd = amount * price;
             await deductSentValue(coinId, amountUsd, recipientAddress);
             
-            // Show success notification
             showTempNotification(t.sentSuccessfully || 'Sent Successfully!', 'send');
         } catch (error) {
             console.error('Error sending funds:', error);
             showTempNotification(t.errorSendingFunds || 'Error sending funds. Please try again.', 'copy');
         } finally {
-            setIsSending(false); // Deactivate spinner
+            setIsSending(false);
             closeModal();
         }
     };
@@ -203,15 +268,146 @@ const Wallets: React.FC = () => {
         window.open('https://t.me/your-support-channel', '_blank');
     };
 
+    // Add asset to wallet
+    const handleAddAsset = async (coin: Coin) => {
+        if (!user) {
+            showTempNotification(t.loginToAddAssets || 'Please login to add assets', 'add');
+            return;
+        }
+
+        setAddingAsset(coin.id);
+        try {
+            // Add the asset to user's wallets in Firebase
+            await addAssetToUserWallets(user.uid, coin);
+            
+            // Initialize wallet addresses for this coin
+            await initializeWalletAddresses(user.uid);
+            
+            // Refresh wallet addresses
+            const addresses = await getUserWalletAddresses(user.uid);
+            setWalletAddresses(addresses || {});
+            
+            showTempNotification(t.assetAdded?.replace('{asset}', coin.name) || `${coin.name} added to your wallet!`, 'add');
+            
+            // Close search results and clear search
+            setShowSearchResults(false);
+            setSearchQuery('');
+            
+        } catch (error) {
+            console.error('Error adding asset:', error);
+            showTempNotification(t.errorAddingAsset || 'Error adding asset to wallet', 'add');
+        } finally {
+            setAddingAsset(null);
+        }
+    };
+
+    const handleSearchFocus = () => {
+        if (searchQuery.trim().length >= 2) {
+            setShowSearchResults(true);
+        }
+    };
+
+    const handleSearchSelect = (coin: Coin) => {
+        // When user selects from search, add it to wallet
+        handleAddAsset(coin);
+    };
+
     if (loading) {
-        return <div className="text-center text-gray-500 dark:text-gray-400">{t.loadingYourAssets || 'Loading your assets...'}</div>;
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+                    <p className="mt-2 text-gray-500 dark:text-gray-400">{t.loadingYourAssets || 'Loading your assets...'}</p>
+                </div>
+            </div>
+        );
     }
 
     const eligibility = getWithdrawalEligibility();
 
     return (
         <div ref={walletRef} className="space-y-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.yourWallets || 'Your Wallets'}</h1>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t.yourWallets || 'Your Wallets'}</h1>
+                
+                {/* Search Bar */}
+                <div className="relative w-full md:w-auto md:min-w-[300px]" ref={searchInputRef}>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onFocus={handleSearchFocus}
+                            placeholder={t.searchAssets || "Search for assets to add..."}
+                            className="w-full pl-10 pr-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 backdrop-blur-sm"
+                            disabled={isSearching}
+                        />
+                        {isSearching && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 animate-spin text-blue-500" size={20} />
+                        )}
+                    </div>
+                    
+                    {/* Search Results Dropdown */}
+                    {showSearchResults && searchResults.length > 0 && (
+                        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-96 overflow-y-auto">
+                            <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    {t.searchResults || 'Search Results'}
+                                </p>
+                            </div>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {searchResults.map((coin) => (
+                                    <div
+                                        key={coin.id}
+                                        className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer transition-colors"
+                                        onClick={() => handleSearchSelect(coin)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <img 
+                                                src={coin.image} 
+                                                alt={coin.name}
+                                                className="w-8 h-8 rounded-full"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = 'https://cryptologos.cc/logos/tether-usdt-logo.png';
+                                                }}
+                                            />
+                                            <div>
+                                                <p className="font-medium text-gray-900 dark:text-white">{coin.name}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{coin.symbol.toUpperCase()}</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleAddAsset(coin);
+                                            }}
+                                            disabled={addingAsset === coin.id}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                                addingAsset === coin.id
+                                                    ? 'bg-blue-400 text-white cursor-not-allowed'
+                                                    : 'bg-blue-600 hover:bg-blue-700 text-white hover:scale-105'
+                                            }`}
+                                        >
+                                            {addingAsset === coin.id ? (
+                                                <>
+                                                    <Loader2 size={14} className="animate-spin" />
+                                                    {t.adding || 'Adding...'}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plus size={14} />
+                                                    {t.add || 'Add'}
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
             
             {/* Withdrawal Eligibility Banner */}
             {!isAdmin && (
@@ -242,91 +438,171 @@ const Wallets: React.FC = () => {
                 </div>
             )}
             
-            <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
-                <div>
-                    <table className="w-full">
-                        <thead className="hidden md:table-header-group border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.asset || 'Asset'}</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.price || 'Price'}</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.h24Change || '24h Change'}</th>
-                                <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.balance || 'Balance'}</th>
-                                <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">{t.actions || 'Actions'}</th>
-                            </tr>
-                        </thead>
-                        <tbody className="block md:table-row-group">
-                            {coins.map(coin => (
-                                <tr key={coin.id} className="block md:table-row mb-4 last:mb-0 md:mb-0 rounded-lg p-4 md:p-0 shadow-lg md:shadow-none bg-white/60 dark:bg-gray-800/60 md:bg-transparent dark:md:bg-transparent md:border-b md:border-gray-200 dark:md:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td className="p-0 pb-3 md:p-4 flex items-center md:table-cell border-b border-gray-200 dark:border-gray-700 md:border-0">
-                                        <img src={coin.image} alt={coin.name} className="w-10 h-10 mr-4"/>
-                                        <div>
-                                            <p className="font-bold text-gray-900 dark:text-white">{coin.name}</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">{coin.symbol.toUpperCase()}</p>
-                                        </div>
-                                    </td>
-                                    <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.price || 'Price'}</span>
-                                        <span>${coin.current_price.toLocaleString()}</span>
-                                    </td>
-                                    <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.h24Change || '24h Change'}</span>
-                                        <span className={`flex justify-end items-center ${coin.price_change_percentage_24h >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-                                            {coin.price_change_percentage_24h >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
-                                            {coin.price_change_percentage_24h.toFixed(2)}%
-                                        </span>
-                                    </td>
-                                    <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
-                                        <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.balance || 'Balance'}</span>
-                                        <div className="text-right">
-                                            <p>{balances[coin.id] ? (balances[coin.id] / coin.current_price).toFixed(6) : '0.00'} {coin.symbol.toUpperCase()}</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">${balances[coin.id]?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
-                                        </div>
-                                    </td>
-                                    <td className="pt-4 md:p-4 md:table-cell">
-                                        <div className="flex justify-end md:justify-center items-center gap-2">
-                                            <button 
-                                                onClick={() => handleSend(coin)} 
-                                                disabled={!balances[coin.id] || balances[coin.id] <= 0}
-                                                className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
-                                                    !balances[coin.id] || balances[coin.id] <= 0
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : eligibility.canWithdraw || isAdmin
-                                                        ? 'bg-blue-600/50 hover:bg-blue-600 text-white'
-                                                        : 'bg-yellow-500/50 hover:bg-yellow-500 text-white'
-                                                }`}
-                                            >
-                                                <Send size={14}/> 
-                                                {eligibility.canWithdraw || isAdmin ? t.withdraw || 'Withdraw' : t.requestWithdrawal || 'Request Withdrawal'}
-                                            </button>
-                                            <button 
-                                                onClick={() => handleReceive(coin)} 
-                                                disabled={isGeneratingAddress}
-                                                className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
-                                                    isGeneratingAddress
-                                                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                        : 'bg-green-600/50 hover:bg-green-600 text-white'
-                                                }`}
-                                            >
-                                                <Download size={14}/> 
-                                                {isGeneratingAddress ? t.generating || 'Generating...' : t.receive || 'Receive'}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+            {/* Available Assets Section */}
+            {availableCoins.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-xl">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h2 className="text-2xl font-bold text-white">{t.discoverAssets || 'Discover New Assets'}</h2>
+                            <p className="text-blue-100">{t.popularAssets || 'Add popular cryptocurrencies to your wallet'}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {availableCoins.slice(0, 4).map((coin) => (
+                                <button
+                                    key={coin.id}
+                                    onClick={() => handleAddAsset({
+                                        ...coin,
+                                        image: `https://cryptologos.cc/logos/${coin.name.toLowerCase().replace(/\s+/g, '-')}-${coin.symbol}-logo.png`,
+                                        current_price: 0,
+                                        price_change_percentage_24h: 0
+                                    } as Coin)}
+                                    disabled={addingAsset === coin.id}
+                                    className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-medium py-2 px-4 rounded-lg transition-all backdrop-blur-sm"
+                                >
+                                    {addingAsset === coin.id ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                    ) : (
+                                        <Plus size={14} />
+                                    )}
+                                    {coin.symbol.toUpperCase()}
+                                </button>
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
+            )}
+            
+            <div className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
+                {coins.length === 0 ? (
+                    <div className="text-center py-12">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            <Search className="text-gray-400" size={32} />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                            {t.noAssetsFound || 'No assets found'}
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            {t.searchToAddAssets || 'Search for cryptocurrencies above to add them to your wallet'}
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {availableCoins.slice(0, 3).map((coin) => (
+                                <button
+                                    key={coin.id}
+                                    onClick={() => handleAddAsset({
+                                        ...coin,
+                                        image: `https://cryptologos.cc/logos/${coin.name.toLowerCase().replace(/\s+/g, '-')}-${coin.symbol}-logo.png`,
+                                        current_price: 0,
+                                        price_change_percentage_24h: 0
+                                    } as Coin)}
+                                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    <Plus size={14} />
+                                    Add {coin.symbol.toUpperCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <table className="w-full">
+                            <thead className="hidden md:table-header-group border-b border-gray-200 dark:border-gray-700">
+                                <tr>
+                                    <th className="text-left p-4 font-semibold text-gray-500 dark:text-gray-400">{t.asset || 'Asset'}</th>
+                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.price || 'Price'}</th>
+                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.h24Change || '24h Change'}</th>
+                                    <th className="text-right p-4 font-semibold text-gray-500 dark:text-gray-400">{t.balance || 'Balance'}</th>
+                                    <th className="text-center p-4 font-semibold text-gray-500 dark:text-gray-400">{t.actions || 'Actions'}</th>
+                                </tr>
+                            </thead>
+                            <tbody className="block md:table-row-group">
+                                {coins.map(coin => (
+                                    <tr key={coin.id} className="block md:table-row mb-4 last:mb-0 md:mb-0 rounded-lg p-4 md:p-0 shadow-lg md:shadow-none bg-white/60 dark:bg-gray-800/60 md:bg-transparent dark:md:bg-transparent md:border-b md:border-gray-200 dark:md:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        <td className="p-0 pb-3 md:p-4 flex items-center md:table-cell border-b border-gray-200 dark:border-gray-700 md:border-0">
+                                            <img 
+                                                src={coin.image} 
+                                                alt={coin.name} 
+                                                className="w-10 h-10 mr-4"
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).src = 'https://cryptologos.cc/logos/tether-usdt-logo.png';
+                                                }}
+                                            />
+                                            <div>
+                                                <p className="font-bold text-gray-900 dark:text-white">{coin.name}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{coin.symbol.toUpperCase()}</p>
+                                            </div>
+                                        </td>
+                                        <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.price || 'Price'}</span>
+                                            <span>${coin.current_price.toLocaleString()}</span>
+                                        </td>
+                                        <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.h24Change || '24h Change'}</span>
+                                            <span className={`flex justify-end items-center ${coin.price_change_percentage_24h >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                                                {coin.price_change_percentage_24h >= 0 ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
+                                                {coin.price_change_percentage_24h.toFixed(2)}%
+                                            </span>
+                                        </td>
+                                        <td className="py-2 md:p-4 flex justify-between items-center md:table-cell md:text-right font-mono">
+                                            <span className="font-semibold text-sm text-gray-500 dark:text-gray-400 md:hidden">{t.balance || 'Balance'}</span>
+                                            <div className="text-right">
+                                                <p>{balances[coin.id] ? (balances[coin.id] / coin.current_price).toFixed(6) : '0.00'} {coin.symbol.toUpperCase()}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">${balances[coin.id]?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</p>
+                                            </div>
+                                        </td>
+                                        <td className="pt-4 md:p-4 md:table-cell">
+                                            <div className="flex justify-end md:justify-center items-center gap-2">
+                                                <button 
+                                                    onClick={() => handleSend(coin)} 
+                                                    disabled={!balances[coin.id] || balances[coin.id] <= 0}
+                                                    className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
+                                                        !balances[coin.id] || balances[coin.id] <= 0
+                                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                            : eligibility.canWithdraw || isAdmin
+                                                            ? 'bg-blue-600/50 hover:bg-blue-600 text-white'
+                                                            : 'bg-yellow-500/50 hover:bg-yellow-500 text-white'
+                                                    }`}
+                                                >
+                                                    <Send size={14}/> 
+                                                    {eligibility.canWithdraw || isAdmin ? t.withdraw || 'Withdraw' : t.requestWithdrawal || 'Request Withdrawal'}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleReceive(coin)} 
+                                                    disabled={isGeneratingAddress}
+                                                    className={`flex items-center gap-2 font-semibold py-2 px-3 rounded-lg transition-all duration-300 text-sm ${
+                                                        isGeneratingAddress
+                                                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                                                            : 'bg-green-600/50 hover:bg-green-600 text-white'
+                                                    }`}
+                                                >
+                                                    <Download size={14}/> 
+                                                    {isGeneratingAddress ? t.generating || 'Generating...' : t.receive || 'Receive'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 p-6 rounded-xl flex items-center justify-between flex-wrap gap-4 shadow-lg shadow-purple-500/20">
-                <div>
-                    <h2 className="text-2xl font-bold text-white">{t.exploreDeFi || 'Explore DeFi Opportunities'}</h2>
-                    <p className="text-purple-100">{t.discoverTokens || 'Discover new tokens and high-yield farms in our ecosystem.'}</p>
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-lg shadow-purple-500/20">
+                <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-white mb-2">{t.exploreDeFi || 'Explore DeFi Opportunities'}</h2>
+                    <p className="text-purple-100 mb-4 md:mb-0">{t.discoverTokens || 'Discover new tokens and high-yield farms in our ecosystem.'}</p>
                 </div>
-                <button className="bg-white text-purple-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-100 transition-transform transform hover:scale-105">
-                    {t.exploreNow || 'Explore Now'}
-                </button>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setSearchQuery('defi')}
+                        className="bg-white/20 hover:bg-white/30 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm transition-colors"
+                    >
+                        {t.searchDeFi || 'Search DeFi'}
+                    </button>
+                    <button className="bg-white text-purple-600 font-bold py-3 px-6 rounded-lg hover:bg-gray-100 transition-colors">
+                        {t.exploreNow || 'Explore Now'}
+                    </button>
+                </div>
             </div>
             
             {isModalOpen && selectedCoin && (
@@ -341,7 +617,7 @@ const Wallets: React.FC = () => {
                     isGeneratingAddress={isGeneratingAddress}
                     canWithdraw={eligibility.canWithdraw || isAdmin}
                     onContactSupport={handleContactSupport}
-                    isSending={isSending} // Pass the sending state to modal
+                    isSending={isSending}
                     t={t}
                 />
             )}
@@ -362,8 +638,8 @@ interface TransactionModalProps {
     isGeneratingAddress?: boolean;
     canWithdraw?: boolean;
     onContactSupport?: () => void;
-    isSending?: boolean; // New prop for send loading state
-    t: any; // Add t prop for translations
+    isSending?: boolean;
+    t: any;
 }
 
 const TransactionModal: React.FC<TransactionModalProps> = ({ 
@@ -377,7 +653,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
     isGeneratingAddress = false,
     canWithdraw = false,
     onContactSupport,
-    isSending = false, // Default to false
+    isSending = false,
     t
 }) => {
     const modalRef = useRef<HTMLDivElement>(null);
@@ -446,7 +722,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                 onChange={(e) => setAddress(e.target.value)} 
                                 placeholder={t.enterAddress?.replace('{symbol}', coin.symbol.toUpperCase()) || `Enter ${coin.symbol.toUpperCase()} address`} 
                                 className="w-full mt-1 bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 px-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={isSending} // Disable input while sending
+                                disabled={isSending}
                             />
                         </div>
                         <div>
@@ -463,7 +739,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                                     onChange={(e) => setAmountUsd(e.target.value)} 
                                     placeholder="0.00" 
                                     className="w-full bg-gray-100 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-lg py-3 pl-7 pr-4 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    disabled={isSending} // Disable input while sending
+                                    disabled={isSending}
                                 />
                             </div>
                             {parseFloat(amountUsd) > 0 && coin.current_price > 0 && (
@@ -475,7 +751,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
                         {error && <p className="text-red-500 text-sm text-center pt-2">{error}</p>}
                         <button 
                             onClick={handleSubmit} 
-                            disabled={isSending} // Disable button while sending
+                            disabled={isSending}
                             className={`w-full font-bold py-3 rounded-lg !mt-6 transition-all duration-300 flex items-center justify-center gap-2 ${
                                 isSending
                                     ? 'bg-blue-400 text-white cursor-not-allowed'
@@ -567,7 +843,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
 
 interface NotificationProps {
     message: string;
-    type: 'copy' | 'send';
+    type: 'copy' | 'send' | 'add';
 }
 
 const Notification: React.FC<NotificationProps> = ({ message, type }) => {
@@ -580,12 +856,23 @@ const Notification: React.FC<NotificationProps> = ({ message, type }) => {
         );
     }, []);
 
-    const iconElement = type === 'copy' ? <CopyCheck size={24} className="text-blue-500 dark:text-blue-400" /> : <CheckCircle size={24} className="text-green-500 dark:text-green-400" />;
+    const getIcon = () => {
+        switch (type) {
+            case 'copy':
+                return <CopyCheck size={24} className="text-blue-500 dark:text-blue-400" />;
+            case 'send':
+                return <CheckCircle size={24} className="text-green-500 dark:text-green-400" />;
+            case 'add':
+                return <Plus size={24} className="text-purple-500 dark:text-purple-400" />;
+            default:
+                return <CheckCircle size={24} className="text-green-500 dark:text-green-400" />;
+        }
+    };
 
     return (
         <div ref={notifRef} className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
             <div className="flex items-center gap-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700">
-                {iconElement}
+                {getIcon()}
                 <span className="font-semibold">{message}</span>
             </div>
         </div>

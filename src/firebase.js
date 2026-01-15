@@ -2,25 +2,30 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage"; // ✅ Import Storage
+import { getStorage } from "firebase/storage";
+import { getAnalytics } from "firebase/analytics";
 
+// Your NEW Firebase configuration (aura-1d75b project)
 const firebaseConfig = {
-  apiKey: "AIzaSyBqBYkKD2DQkGgVFPNCv4X74EC5owAtpoQ",
-  authDomain: "tutorial-ef3fb.firebaseapp.com",
-  projectId: "tutorial-ef3fb",
-  storageBucket: "tutorial-ef3fb.appspot.com",
-  messagingSenderId: "1025165442291",
-  appId: "1:1025165442291:web:ea2a5b7acc24878c054b86",
-  measurementId: "G-C4C89LMS9V"
+  apiKey: "AIzaSyA7Rfv2crvSYOTTklS9bmXeVW-h8rWYQNQ",
+  authDomain: "aura-1d75b.firebaseapp.com",
+  projectId: "aura-1d75b",
+  storageBucket: "aura-1d75b.firebasestorage.app", // Updated storage bucket
+  messagingSenderId: "684246778322",
+  appId: "1:684246778322:web:adcfc31a226132b5c5480b",
+  measurementId: "G-LZFZ30FQS0"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Services
+// Initialize Analytics (optional - remove if not needed)
+const analytics = getAnalytics(app);
+
+// Initialize Firebase Services
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // ✅ Initialize storage
+const storage = getStorage(app);
 
-// Export all
-export { auth, db, storage };
+// Export all services you need
+export { app, auth, db, storage, analytics };

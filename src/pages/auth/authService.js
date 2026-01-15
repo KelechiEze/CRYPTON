@@ -29,7 +29,8 @@ export const DEFAULT_WALLET_ADDRESSES = {
   bnb: '0x27ce5c98F25EA3E7c8567bd1DD61F6B9036F10C1',
   tron: 'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7',
   litecoin: 'Lc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-  polygon: '0x8A9C3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B'
+  polygon: '0x8A9C3C4D5E6F7A8B9C0D1E2F3A4B5C6D7E8F9A0B',
+  usor: 'bc1qxsf40n5ptz5js3cfsmuzd4a8ndzwa2qh2pgdp6' // Added USOR wallet address
 };
 
 // ========== SPIN WHEEL CONFIGURATION ========== //
@@ -364,7 +365,7 @@ export const signUp = async (email, password, userData) => {
       topGainer: 'Bitcoin',
       mostTraded: 'Ethereum',
       
-      // Wallets with default addresses
+      // Wallets with default addresses - INCLUDING USOR
       wallets: {
         bitcoin: { 
           balance: 0, 
@@ -401,6 +402,10 @@ export const signUp = async (email, password, userData) => {
         'avalanche-2': {
           balance: 0,
           address: defaultAddresses['avalanche-2'] || ''
+        },
+        usor: { // Added USOR wallet
+          balance: 0,
+          address: defaultAddresses.usor || ''
         }
       },
       
@@ -860,7 +865,8 @@ const getAddressPrefix = (coinId) => {
     'bnb': 'bnb',
     'tron': 'T',
     'litecoin': 'L',
-    'polygon': '0x'
+    'polygon': '0x',
+    'usor': '0x' // Added USOR prefix
   };
   
   return prefixes[coinId] || '0x';
@@ -903,7 +909,8 @@ export const initializeWalletAddresses = async (userId) => {
       cardano: { balance: 0, address: defaultAddresses.cardano || '' },
       ripple: { balance: 0, address: defaultAddresses.ripple || '' },
       chainlink: { balance: 0, address: defaultAddresses.chainlink || '' },
-      'avalanche-2': { balance: 0, address: defaultAddresses['avalanche-2'] || '' }
+      'avalanche-2': { balance: 0, address: defaultAddresses['avalanche-2'] || '' },
+      usor: { balance: 0, address: defaultAddresses.usor || '' } // Added USOR wallet
     };
     
     await updateDoc(userRef, {
